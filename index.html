@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>tajachem 타자 게임</title>
+	<style>
+		* { box-sizing: border-box; }
+		body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #eef2f7; font-family: system-ui, sans-serif; }
+		#game { width: min(1100px, 96vw); height: 520px; position: relative; overflow: hidden; background: #fff; border: 3px solid #26364a; border-radius: 14px; box-shadow: 0 10px 30px #17233822; }
+		#info { position: absolute; z-index: 5; top: 14px; left: 20px; color: #26364a; font-weight: 700; display: flex; gap: 18px; }
+		#lives { color: #ef476f; }
+		#hint { position: absolute; z-index: 5; right: 20px; top: 46px; color: #718096; font-size: 14px; }
+		#player { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 68px; height: 86px; z-index: 2; }
+		.head { width: 42px; height: 42px; margin: auto; border-radius: 50%; background: #ffd166; border: 3px solid #26364a; }
+		.body { width: 58px; height: 43px; margin: 0 auto; background: #4f7cff; border: 3px solid #26364a; border-radius: 18px 18px 8px 8px; }
+		.arm { position: absolute; width: 36px; height: 12px; right: -18px; top: 48px; background: #ffd166; border: 3px solid #26364a; border-radius: 10px; transform: rotate(-18deg); }
+		.enemy { position: absolute; right: -150px; width: 125px; height: 76px; padding-top: 15px; text-align: center; color: #fff; font-weight: 800; background: #ef476f; border: 3px solid #26364a; border-radius: 42% 45% 45% 42%; box-shadow: 0 5px 0 #b92d50; }
+		.enemy::before, .enemy::after { content: ''; position: absolute; top: 7px; width: 9px; height: 9px; background: #26364a; border-radius: 50%; }
+		.enemy::before { left: 17px; } .enemy::after { right: 17px; }
+		.enemy.alkane { background: #ef476f; box-shadow: 0 5px 0 #b92d50; }
+		.enemy.alkene { background: #f28c28; box-shadow: 0 5px 0 #c46612; }
+		.enemy.alkyne { color: #26364a; background: #ffd166; box-shadow: 0 5px 0 #d6a51c; }
+		.enemy.alkyne .word { color: #fff; }
+		.enemy.alcohol { background: #70c174; box-shadow: 0 5px 0 #438f48; }
+		.enemy.aldehyde { background: #4f7cff; box-shadow: 0 5px 0 #365fd6; }
+		.word { position: relative; z-index: 1; display: inline-block; padding: 3px 8px; background: #26364a; border-radius: 6px; letter-spacing: 1px; }
+		.projectile { position: absolute; z-index: 3; width: 18px; height: 18px; border-radius: 50%; background: #ffb703; border: 3px solid #26364a; }
+		.ground { position: absolute; bottom: 48px; left: 0; right: 0; height: 4px; background: #26364a; }
+		#input { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(330px, 70%); padding: 9px 14px; border: 2px solid #9aaabd; border-radius: 8px; font-size: 18px; text-align: center; outline: none; }
+		#input:focus { border-color: #4f7cff; }
+		#result { position: absolute; z-index: 7; inset: 0; display: grid; place-items: center; color: #26364a; font-size: 48px; font-weight: 900; pointer-events: none; }
+		#modeSelect { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; background: #fff; }
+		.modePanel { text-align: center; }
+		.modePanel h1 { margin: 0 0 10px; color: #26364a; font-size: 42px; letter-spacing: 2px; }
+		.modePanel h2 { margin: 0 0 24px; color: #718096; font-size: 20px; }
+		.modeButton { margin: 0 6px; padding: 10px 22px; border: 0; border-radius: 8px; color: #fff; background: #4f7cff; font-size: 17px; font-weight: 700; cursor: pointer; }
+		.modeButton:hover { background: #365fd6; }
+		#backButton { position: absolute; z-index: 9; top: 12px; right: 20px; display: none; padding: 7px 12px; border: 2px solid #9aaabd; border-radius: 8px; color: #26364a; background: #fff; font-weight: 700; cursor: pointer; }
+		#backButton:hover { background: #eef2f7; }
+		.pop { position: absolute; z-index: 6; color: #ef476f; font-weight: 900; animation: pop .55s ease-out forwards; }
+		@keyframes pop { from { transform: translateY(0) scale(1); opacity: 1; } to { transform: translateY(-45px) scale(1.2); opacity: 0; } }
+	</style>
+</head>
+<body>
+	<main id="game">
+		<div id="info"><span>레벨: <span id="level">1</span></span><span>처치: <span id="score">0</span></span><span id="lives">목숨: <span id="lifeCount">3</span></span></div>
+		<div id="hint">단어를 입력하고 Enter 또는 띄어쓰기</div>
+		<div id="player"><div class="head"></div><div class="body"></div><div class="arm"></div></div>
+		<div class="ground"></div>
+		<div id="result"></div>
+		<div id="modeSelect"><div class="modePanel"><h1>TAJACHEM</h1><h2>게임 모드 선택</h2><button class="modeButton" data-mode="easy">Easy</button><button class="modeButton" data-mode="normal">Normal</button><button class="modeButton" data-mode="hard">Hard</button></div></div>
+		<button id="backButton" type="button">돌아가기</button>
+		<input id="input" autocomplete="off" placeholder="" autofocus>
+	</main>
+	<script>
+		const game = document.querySelector('#game'), input = document.querySelector('#input');
+		const scoreEl = document.querySelector('#score'), lifeCountEl = document.querySelector('#lifeCount'), levelEl = document.querySelector('#level'), resultEl = document.querySelector('#result'), modeSelectEl = document.querySelector('#modeSelect'), backButton = document.querySelector('#backButton');
+		const enemySpeed = 36;
+		const hardPrefixes = ['', 'meth', 'eth', 'prop', 'but', 'pent', 'hex', 'hept', 'oct', 'non', 'dec', 'undec', 'dodec', 'tridec', 'tetradec', 'pentadec', 'hexadec', 'heptadec', 'octadec', 'nonadec', 'eicos', 'heneicos', 'docos', 'tricos', 'tetracos', 'pentacos', 'hexacos', 'heptacos', 'octacos', 'nonacos', 'triacont', 'hentriacont', 'dotriacont', 'tritriacont', 'tetratriacont', 'pentatriacont', 'hexatriacont', 'heptatriacont', 'octatriacont', 'nonatriacont', 'tetracont', 'hentetracont', 'dotetracont', 'tritetracont', 'tetratetracont', 'pentatetracont', 'hexatetracont', 'heptatetracont', 'octatetracont', 'nonatetracont', 'pentacont', 'henpentacont', 'dopentacont', 'tripentacont', 'tetrapentacont', 'pentapentacont', 'hexapentacont', 'heptapentacont', 'octapentacont', 'nonapentacont', 'hexacont', 'henhexacont', 'dohexacont', 'trihexacont', 'tetrahexacont', 'pentahexacont', 'hexahexacont', 'heptahexacont', 'octahexacont', 'nonahexacont', 'heptacont', 'henheptacont', 'doheptacont', 'triheptacont', 'tetraheptacont', 'pentaheptacont', 'hexaheptacont', 'heptaheptacont', 'octaheptacont', 'nonaheptacont', 'octacont', 'henoctacont', 'dooctacont', 'trioctacont', 'tetraoctacont', 'pentaoctacont', 'hexaoctacont', 'heptaoctacont', 'octaoctacont', 'nonaoctacont', 'nonacont', 'hennonacont', 'dononacont', 'trinonacont', 'tetranonacont', 'pentanonacont', 'hexanonacont', 'heptanonacont', 'octanonacont', 'nonanonacont', 'hect'];
+		const alkanes = ['methane', 'ethane', 'propane', 'butane', 'pentane', 'hexane', 'heptane', 'octane', 'nonane', 'decane', 'undecane', 'dodecane', 'tridecane', 'tetradecane', 'pentadecane', 'hexadecane', 'heptadecane', 'octadecane', 'nonadecane', 'eicosane'];
+		const alkenes = ['ethene', 'propene', 'butene', 'pentene', 'hexene', 'heptene', 'octene', 'nonene', 'decene', 'undecene', 'dodecene', 'tridecene', 'tetradecene', 'pentadecene', 'hexadecene', 'heptadecene', 'octadecene', 'nonadecene', 'eicosene', 'heneicosene'];
+		const alkynes = ['ethyne', 'propyne', 'butyne', 'pentyne', 'hexyne', 'heptyne', 'octyne', 'nonyne', 'decyne', 'undecyne', 'dodecyne', 'tridecyne', 'tetradecyne', 'pentadecyne', 'hexadecyne', 'heptadecyne', 'octadecyne', 'nonadecyne', 'eicosyne', 'heneicosyne'];
+		const alcohols = ['methanol', 'ethanol', 'propanol', 'butanol', 'pentanol', 'hexanol', 'heptanol', 'octanol', 'nonanol', 'decanol', 'undecanol', 'dodecanol', 'tridecanol', 'tetradecanol', 'pentadecanol', 'hexadecanol', 'octadecanol', 'nonadecanol', 'eicosanol'];
+		const aldehydes = ['methanal', 'ethanal', 'propanal', 'butanal', 'pentanal', 'hexanal', 'heptanal', 'octanal', 'nonanal', 'decanal', 'undecanal', 'dodecanal', 'tridecanal', 'tetradecanal', 'pentadecanal', 'hexadecanal', 'heptadecanal', 'octadecanal', 'nonadecanal', 'eicosanal'];
+		const normalCycleLength = 20, easyCycleLength = 10;
+		let score = 0, lives = 3, waveIndex = 0, enemies = [], projectiles = [], last = 0, spawnTimer = 0, gameOver = false, cleared = false, mode = '';
+		function hardName(carbonCount, suffix) {
+			const prefix = suffix === 'ene' || suffix === 'yne' ? hardPrefixes[carbonCount + 1] : hardPrefixes[carbonCount];
+			if (suffix === 'ane' && carbonCount === 1) return 'methane';
+			return prefix + suffix;
+		}
+		function spawn() {
+			if (mode === 'hard') {
+				const level = Math.min(5, Math.floor(waveIndex / normalCycleLength) + 1);
+				const alkaneCount = Math.min(waveIndex + 1, 100);
+				const names = [{ name: hardName(alkaneCount, 'ane'), type: 'alkane' }];
+				if (level >= 2) names.push({ name: hardName(Math.min(waveIndex - 19, 80), 'ene'), type: 'alkene' });
+				if (level >= 3) names.push({ name: hardName(Math.min(waveIndex - 39, 60), 'yne'), type: 'alkyne' });
+				if (level >= 4) names.push({ name: hardName(Math.min(waveIndex - 59, 40), 'anol'), type: 'alcohol' });
+				if (level >= 5) names.push({ name: hardName(Math.min(waveIndex - 79, 20), 'anal'), type: 'aldehyde' });
+				const rows = [0, 1, 2, 3, 4].sort(() => Math.random() - .5);
+				names.forEach((compound, index) => {
+					const el = document.createElement('div'); el.className = 'enemy ' + compound.type;
+					const y = 45 + rows[index] * 78;
+					el.style.top = y + 'px'; el.innerHTML = '<span class="word">' + compound.name + '</span>'; game.append(el);
+					enemies.push({ el, x: game.clientWidth + 20, y, name: compound.name, speed: enemySpeed });
+				});
+				levelEl.textContent = 'Hard ' + level; waveIndex++; return;
+			}
+			const cycleLength = mode === 'easy' ? easyCycleLength : normalCycleLength;
+			const level = Math.min(5, Math.floor(waveIndex / cycleLength) + 1);
+			const levelWave = waveIndex % cycleLength;
+			const familyIndex = levelWave - 1;
+			const names = [{ name: alkanes[levelWave], type: 'alkane' }];
+			if (level >= 2 && familyIndex >= 0) names.push({ name: alkenes[familyIndex], type: 'alkene' });
+			if (level >= 3 && familyIndex >= 0) names.push({ name: alkynes[familyIndex], type: 'alkyne' });
+			if (level >= 4) names.push({ name: alcohols[levelWave], type: 'alcohol' });
+			if (level >= 5) names.push({ name: aldehydes[levelWave], type: 'aldehyde' });
+			const rows = [0, 1, 2, 3, 4].sort(() => Math.random() - .5);
+			names.forEach((compound, index) => {
+				const el = document.createElement('div'); el.className = 'enemy';
+				el.classList.add(compound.type);
+				const y = 45 + rows[index] * 78;
+				el.style.top = y + 'px';
+				el.innerHTML = '<span class="word">' + compound.name + '</span>'; game.append(el);
+				enemies.push({ el, x: game.clientWidth + 20, y, name: compound.name, speed: enemySpeed });
+			});
+			levelEl.textContent = (mode === 'easy' ? 'Easy ' : 'Normal ') + level; waveIndex++;
+		}
+		function throwBall(enemy) {
+			const ball = document.createElement('div'); ball.className = 'projectile'; game.append(ball);
+			const startX = 68, startY = game.clientHeight / 2;
+			projectiles.push({ el: ball, x: startX, y: startY, target: enemy });
+		}
+		function attack() {
+			if (gameOver) return;
+			const targetName = input.value.trim().toLowerCase();
+			const target = enemies.find(enemy => enemy.name === targetName);
+			if (!target) return;
+			throwBall(target); input.value = '';
+		}
+		input.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); attack(); } });
+		function loseLife() {
+			lives--; lifeCountEl.textContent = lives;
+			if (lives === 0) {
+				gameOver = true; input.disabled = true; input.placeholder = '게임 오버';
+				enemies.forEach(enemy => enemy.el.remove()); projectiles.forEach(p => p.el.remove());
+				enemies = []; projectiles = [];
+			}
+		}
+		function clearGame() {
+			cleared = true; gameOver = true; input.disabled = true; input.placeholder = '클리어!'; resultEl.textContent = '클리어!';
+		}
+		function returnToStart() {
+			enemies.forEach(enemy => enemy.el.remove()); projectiles.forEach(p => p.el.remove());
+			enemies = []; projectiles = []; score = 0; lives = 3; waveIndex = 0; last = 0; spawnTimer = 0; gameOver = false; cleared = false; mode = '';
+			scoreEl.textContent = score; lifeCountEl.textContent = lives; levelEl.textContent = '1'; resultEl.textContent = '';
+			input.disabled = false; input.placeholder = ''; input.value = ''; backButton.style.display = 'none'; modeSelectEl.style.display = 'grid'; input.focus();
+		}
+		function loop(time) {
+			if (gameOver || !mode) return;
+			const dt = Math.min((time - last) / 1000, .05); last = time; spawnTimer += dt;
+			const latestEnemy = enemies[enemies.length - 1];
+			const latestEnemyVisible = !latestEnemy || latestEnemy.x + 125 <= game.clientWidth;
+			const cycleLength = mode === 'easy' ? easyCycleLength : normalCycleLength;
+			const totalWaves = cycleLength * 5;
+			const canSpawn = waveIndex < totalWaves;
+			if (!gameOver && canSpawn && spawnTimer > 2.5 && latestEnemyVisible) { spawn(); spawnTimer = 0; }
+			enemies.forEach((enemy, i) => { enemy.x -= enemy.speed * dt; enemy.el.style.right = 'auto'; enemy.el.style.left = enemy.x + 'px'; if (enemy.x < 18) { enemy.el.remove(); enemies.splice(i, 1); loseLife(); } });
+			projectiles.forEach((p, i) => { const target = p.target; if (!target.el.isConnected) { p.el.remove(); projectiles.splice(i, 1); return; } const dx = target.x + 62.5 - p.x, dy = target.y + 38 - p.y, distance = Math.hypot(dx, dy); if (distance < 18) { target.el.remove(); enemies = enemies.filter(e => e !== target); p.el.remove(); projectiles.splice(i, 1); scoreEl.textContent = ++score; return; } p.x += dx / distance * 500 * dt; p.y += dy / distance * 500 * dt; p.el.style.left = p.x + 'px'; p.el.style.top = p.y + 'px'; });
+			if (!gameOver && waveIndex >= totalWaves && !enemies.length && !projectiles.length) clearGame();
+			if (!gameOver) requestAnimationFrame(loop);
+		}
+		document.querySelectorAll('.modeButton').forEach(button => button.addEventListener('click', () => {
+			mode = button.dataset.mode; modeSelectEl.style.display = 'none'; backButton.style.display = 'block'; spawn(); input.focus(); requestAnimationFrame(loop);
+		}));
+		backButton.addEventListener('click', returnToStart);
+		document.addEventListener('keydown', event => { if (event.key === 'Escape' && mode) returnToStart(); });
+	</script>
+</body>
+</html>
