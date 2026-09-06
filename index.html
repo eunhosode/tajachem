@@ -30,6 +30,7 @@
 		#input { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(330px, 70%); padding: 9px 14px; border: 2px solid #9aaabd; border-radius: 8px; font-size: 18px; text-align: center; outline: none; }
 		#input:focus { border-color: #4f7cff; }
 		#result { position: absolute; z-index: 7; inset: 0; display: grid; place-items: center; color: #26364a; font-size: 48px; font-weight: 900; pointer-events: none; }
+		#result small { display: block; margin-top: 12px; font-size: 24px; }
 		#modeSelect { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; background: #fff; }
 		.modePanel { text-align: center; }
 		.modePanel h1 { margin: 0 0 10px; color: #26364a; font-size: 42px; letter-spacing: 2px; }
@@ -56,7 +57,7 @@
 	<script>
 		const game = document.querySelector('#game'), input = document.querySelector('#input');
 		const scoreEl = document.querySelector('#score'), lifeCountEl = document.querySelector('#lifeCount'), levelEl = document.querySelector('#level'), resultEl = document.querySelector('#result'), modeSelectEl = document.querySelector('#modeSelect'), backButton = document.querySelector('#backButton');
-		const enemySpeed = 36;
+		const enemySpeed = 36, speedReduction = 6;
 		const hardPrefixes = ['', 'meth', 'eth', 'prop', 'but', 'pent', 'hex', 'hept', 'oct', 'non', 'dec', 'undec', 'dodec', 'tridec', 'tetradec', 'pentadec', 'hexadec', 'heptadec', 'octadec', 'nonadec', 'eicos', 'heneicos', 'docos', 'tricos', 'tetracos', 'pentacos', 'hexacos', 'heptacos', 'octacos', 'nonacos', 'triacont', 'hentriacont', 'dotriacont', 'tritriacont', 'tetratriacont', 'pentatriacont', 'hexatriacont', 'heptatriacont', 'octatriacont', 'nonatriacont', 'tetracont', 'hentetracont', 'dotetracont', 'tritetracont', 'tetratetracont', 'pentatetracont', 'hexatetracont', 'heptatetracont', 'octatetracont', 'nonatetracont', 'pentacont', 'henpentacont', 'dopentacont', 'tripentacont', 'tetrapentacont', 'pentapentacont', 'hexapentacont', 'heptapentacont', 'octapentacont', 'nonapentacont', 'hexacont', 'henhexacont', 'dohexacont', 'trihexacont', 'tetrahexacont', 'pentahexacont', 'hexahexacont', 'heptahexacont', 'octahexacont', 'nonahexacont', 'heptacont', 'henheptacont', 'doheptacont', 'triheptacont', 'tetraheptacont', 'pentaheptacont', 'hexaheptacont', 'heptaheptacont', 'octaheptacont', 'nonaheptacont', 'octacont', 'henoctacont', 'dooctacont', 'trioctacont', 'tetraoctacont', 'pentaoctacont', 'hexaoctacont', 'heptaoctacont', 'octaoctacont', 'nonaoctacont', 'nonacont', 'hennonacont', 'dononacont', 'trinonacont', 'tetranonacont', 'pentanonacont', 'hexanonacont', 'heptanonacont', 'octanonacont', 'nonanonacont', 'hect'];
 		const alkanes = ['methane', 'ethane', 'propane', 'butane', 'pentane', 'hexane', 'heptane', 'octane', 'nonane', 'decane', 'undecane', 'dodecane', 'tridecane', 'tetradecane', 'pentadecane', 'hexadecane', 'heptadecane', 'octadecane', 'nonadecane', 'eicosane'];
 		const alkenes = ['ethene', 'propene', 'butene', 'pentene', 'hexene', 'heptene', 'octene', 'nonene', 'decene', 'undecene', 'dodecene', 'tridecene', 'tetradecene', 'pentadecene', 'hexadecene', 'heptadecene', 'octadecene', 'nonadecene', 'eicosene', 'heneicosene'];
@@ -64,7 +65,7 @@
 		const alcohols = ['methanol', 'ethanol', 'propanol', 'butanol', 'pentanol', 'hexanol', 'heptanol', 'octanol', 'nonanol', 'decanol', 'undecanol', 'dodecanol', 'tridecanol', 'tetradecanol', 'pentadecanol', 'hexadecanol', 'octadecanol', 'nonadecanol', 'eicosanol'];
 		const aldehydes = ['methanal', 'ethanal', 'propanal', 'butanal', 'pentanal', 'hexanal', 'heptanal', 'octanal', 'nonanal', 'decanal', 'undecanal', 'dodecanal', 'tridecanal', 'tetradecanal', 'pentadecanal', 'hexadecanal', 'heptadecanal', 'octadecanal', 'nonadecanal', 'eicosanal'];
 		const normalCycleLength = 20, easyCycleLength = 10;
-		let score = 0, lives = 3, waveIndex = 0, enemies = [], projectiles = [], last = 0, spawnTimer = 0, gameOver = false, cleared = false, mode = '';
+		let score = 0, lives = 3, waveIndex = 0, enemies = [], projectiles = [], last = 0, spawnTimer = 0, gameOver = false, cleared = false, levelUp = false, levelUpTimer = 0, levelSpeed = enemySpeed, mode = '';
 		function hardName(carbonCount, suffix) {
 			const prefix = suffix === 'ene' || suffix === 'yne' ? hardPrefixes[carbonCount + 1] : hardPrefixes[carbonCount];
 			if (suffix === 'ane' && carbonCount === 1) return 'methane';
@@ -75,16 +76,16 @@
 				const level = Math.min(5, Math.floor(waveIndex / normalCycleLength) + 1);
 				const alkaneCount = Math.min(waveIndex + 1, 100);
 				const names = [{ name: hardName(alkaneCount, 'ane'), type: 'alkane' }];
-				if (level >= 2) names.push({ name: hardName(Math.min(waveIndex - 19, 80), 'ene'), type: 'alkene' });
-				if (level >= 3) names.push({ name: hardName(Math.min(waveIndex - 39, 60), 'yne'), type: 'alkyne' });
-				if (level >= 4) names.push({ name: hardName(Math.min(waveIndex - 59, 40), 'anol'), type: 'alcohol' });
-				if (level >= 5) names.push({ name: hardName(Math.min(waveIndex - 79, 20), 'anal'), type: 'aldehyde' });
+				if (level >= 2 && waveIndex > 20) names.push({ name: hardName(Math.min(waveIndex - 20, 80), 'ene'), type: 'alkene' });
+				if (level >= 3 && waveIndex > 40) names.push({ name: hardName(Math.min(waveIndex - 40, 60), 'yne'), type: 'alkyne' });
+				if (level >= 4) names.push({ name: hardName(Math.min(Math.max(waveIndex - 59, 1), 40), 'anol'), type: 'alcohol' });
+				if (level >= 5) names.push({ name: hardName(Math.min(Math.max(waveIndex - 79, 1), 20), 'anal'), type: 'aldehyde' });
 				const rows = [0, 1, 2, 3, 4].sort(() => Math.random() - .5);
 				names.forEach((compound, index) => {
 					const el = document.createElement('div'); el.className = 'enemy ' + compound.type;
 					const y = 45 + rows[index] * 78;
 					el.style.top = y + 'px'; el.innerHTML = '<span class="word">' + compound.name + '</span>'; game.append(el);
-					enemies.push({ el, x: game.clientWidth + 20, y, name: compound.name, speed: enemySpeed });
+					enemies.push({ el, x: game.clientWidth + 20, y, name: compound.name, speed: levelSpeed });
 				});
 				levelEl.textContent = 'Hard ' + level; waveIndex++; return;
 			}
@@ -104,7 +105,7 @@
 				const y = 45 + rows[index] * 78;
 				el.style.top = y + 'px';
 				el.innerHTML = '<span class="word">' + compound.name + '</span>'; game.append(el);
-				enemies.push({ el, x: game.clientWidth + 20, y, name: compound.name, speed: enemySpeed });
+				enemies.push({ el, x: game.clientWidth + 20, y, name: compound.name, speed: levelSpeed });
 			});
 			levelEl.textContent = (mode === 'easy' ? 'Easy ' : 'Normal ') + level; waveIndex++;
 		}
@@ -132,24 +133,42 @@
 		function clearGame() {
 			cleared = true; gameOver = true; input.disabled = true; input.placeholder = '클리어!'; resultEl.textContent = '클리어!';
 		}
+		function startLevelUp(cycleLength) {
+			const itemRoll = Math.random();
+			let itemText;
+			if (itemRoll < .5) { lives++; lifeCountEl.textContent = lives; itemText = '목숨 1개 추가'; }
+			else if (itemRoll < .75) { levelSpeed = Math.max(0, levelSpeed - speedReduction); itemText = '감속'; }
+			else itemText = '꽝';
+			levelUp = true; resultEl.innerHTML = '레벨업<small>아이템: ' + itemText + '</small>';
+			const nextLevel = Math.floor(waveIndex / cycleLength) + 1;
+			levelEl.textContent = (mode === 'easy' ? 'Easy ' : mode === 'hard' ? 'Hard ' : 'Normal ') + nextLevel;
+			levelUpTimer = setTimeout(() => {
+				levelUp = false; resultEl.textContent = '';
+				spawnTimer = 0; spawn(); requestAnimationFrame(loop);
+			}, 3000);
+		}
 		function returnToStart() {
 			enemies.forEach(enemy => enemy.el.remove()); projectiles.forEach(p => p.el.remove());
-			enemies = []; projectiles = []; score = 0; lives = 3; waveIndex = 0; last = 0; spawnTimer = 0; gameOver = false; cleared = false; mode = '';
+			clearTimeout(levelUpTimer); enemies = []; projectiles = []; score = 0; lives = 3; waveIndex = 0; last = 0; spawnTimer = 0; gameOver = false; cleared = false; levelUp = false; levelSpeed = enemySpeed; mode = '';
 			scoreEl.textContent = score; lifeCountEl.textContent = lives; levelEl.textContent = '1'; resultEl.textContent = '';
 			input.disabled = false; input.placeholder = ''; input.value = ''; backButton.style.display = 'none'; modeSelectEl.style.display = 'grid'; input.focus();
 		}
 		function loop(time) {
-			if (gameOver || !mode) return;
+			if (gameOver || !mode || levelUp) return;
 			const dt = Math.min((time - last) / 1000, .05); last = time; spawnTimer += dt;
 			const latestEnemy = enemies[enemies.length - 1];
 			const latestEnemyVisible = !latestEnemy || latestEnemy.x + 125 <= game.clientWidth;
 			const cycleLength = mode === 'easy' ? easyCycleLength : normalCycleLength;
 			const totalWaves = cycleLength * 5;
 			const canSpawn = waveIndex < totalWaves;
-			if (!gameOver && canSpawn && spawnTimer > 2.5 && latestEnemyVisible) { spawn(); spawnTimer = 0; }
+			const levelBoundary = waveIndex > 0 && waveIndex % cycleLength === 0;
+			if (!gameOver && !levelBoundary && canSpawn && spawnTimer > 2.5 && latestEnemyVisible) { spawn(); spawnTimer = 0; }
 			enemies.forEach((enemy, i) => { enemy.x -= enemy.speed * dt; enemy.el.style.right = 'auto'; enemy.el.style.left = enemy.x + 'px'; if (enemy.x < 18) { enemy.el.remove(); enemies.splice(i, 1); loseLife(); } });
 			projectiles.forEach((p, i) => { const target = p.target; if (!target.el.isConnected) { p.el.remove(); projectiles.splice(i, 1); return; } const dx = target.x + 62.5 - p.x, dy = target.y + 38 - p.y, distance = Math.hypot(dx, dy); if (distance < 18) { target.el.remove(); enemies = enemies.filter(e => e !== target); p.el.remove(); projectiles.splice(i, 1); scoreEl.textContent = ++score; return; } p.x += dx / distance * 500 * dt; p.y += dy / distance * 500 * dt; p.el.style.left = p.x + 'px'; p.el.style.top = p.y + 'px'; });
-			if (!gameOver && waveIndex >= totalWaves && !enemies.length && !projectiles.length) clearGame();
+			if (!gameOver && levelBoundary && !enemies.length && !projectiles.length) {
+				if (waveIndex >= totalWaves) clearGame();
+				else startLevelUp(cycleLength);
+			}
 			if (!gameOver) requestAnimationFrame(loop);
 		}
 		document.querySelectorAll('.modeButton').forEach(button => button.addEventListener('click', () => {
