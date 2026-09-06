@@ -1,5 +1,4 @@
-# tajachem
-Chemicals Typing Game
+# TAJACHEM
 
 A browser typing game where you defeat enemies by typing chemical compound names.
 Practice the names of alkanes, alkenes, alkynes, alcohols, and aldehydes while you play.
@@ -19,6 +18,22 @@ The game is deployed as a static website with GitHub Pages.
 - `Back` button or `Esc`: Return to the mode-selection screen
 - An enemy reaching the left edge costs one life.
 - The game ends when all three lives are lost.
+- All enemies in the current level must be defeated before the next level begins.
+- A `Level Up` message and an item result appear for 3 seconds between levels.
+
+## Level-Up Items
+
+One item is selected whenever the player levels up:
+
+- 50%: `+1 Life`
+- 25%: `Slow Down`
+	- Reduces enemy speed by 6.
+	- The effect lasts through all later levels.
+	- Multiple Slow Down items stack.
+- 25%: `Miss`
+	- No effect.
+
+Enemy speed starts at 36. For example, two Slow Down items reduce it to 24.
 
 ## Game Modes
 
