@@ -8,6 +8,7 @@
 		* { box-sizing: border-box; }
 		body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #eef2f7; font-family: system-ui, sans-serif; }
 		#game { width: min(1100px, 96vw); height: 520px; position: relative; overflow: hidden; background: #fff; border: 3px solid #26364a; border-radius: 14px; box-shadow: 0 10px 30px #17233822; }
+		#game.boss-fight { background: #ffe5e5; }
 		#info { position: absolute; z-index: 5; top: 14px; left: 20px; color: #26364a; font-weight: 700; display: flex; gap: 18px; }
 		#lives { color: #ef476f; }
 		#hint { position: absolute; z-index: 5; right: 20px; top: 46px; color: #718096; font-size: 14px; }
@@ -24,6 +25,8 @@
 		.enemy.alkyne .word { color: #fff; }
 		.enemy.alcohol { background: #70c174; box-shadow: 0 5px 0 #438f48; }
 		.enemy.aldehyde { background: #4f7cff; box-shadow: 0 5px 0 #365fd6; }
+		.enemy.boss { width: 375px; height: 228px; padding: 84px 18px 0; background: #9b59b6; box-shadow: 0 15px 0 #6c3483; }
+		.enemy.boss .word { max-width: 100%; font-size: 22px; line-height: 1.25; overflow-wrap: anywhere; }
 		.word { position: relative; z-index: 1; display: inline-block; padding: 3px 8px; background: #26364a; border-radius: 6px; letter-spacing: 1px; }
 		.projectile { position: absolute; z-index: 3; width: 18px; height: 18px; border-radius: 50%; background: #ffb703; border: 3px solid #26364a; }
 		.ground { position: absolute; bottom: 48px; left: 0; right: 0; height: 4px; background: #26364a; }
@@ -50,7 +53,7 @@
 		<div id="player"><div class="head"></div><div class="body"></div><div class="arm"></div></div>
 		<div class="ground"></div>
 		<div id="result"></div>
-		<div id="modeSelect"><div class="modePanel"><h1>TAJACHEM</h1><h2>게임 모드 선택</h2><button class="modeButton" data-mode="easy">Easy</button><button class="modeButton" data-mode="normal">Normal</button><button class="modeButton" data-mode="hard">Hard</button></div></div>
+		<div id="modeSelect"><div class="modePanel"><h1>TAJACHEM</h1><h2>게임 모드 선택</h2><button class="modeButton" data-mode="easy">Easy</button><button class="modeButton" data-mode="normal">Normal</button><button class="modeButton" data-mode="hard">Hard</button><button class="modeButton" data-mode="boss">Boss</button></div></div>
 		<button id="backButton" type="button">돌아가기</button>
 		<input id="input" autocomplete="off" placeholder="" autofocus>
 	</main>
@@ -64,8 +67,15 @@
 		const alkynes = ['ethyne', 'propyne', 'butyne', 'pentyne', 'hexyne', 'heptyne', 'octyne', 'nonyne', 'decyne', 'undecyne', 'dodecyne', 'tridecyne', 'tetradecyne', 'pentadecyne', 'hexadecyne', 'heptadecyne', 'octadecyne', 'nonadecyne', 'eicosyne', 'heneicosyne'];
 		const alcohols = ['methanol', 'ethanol', 'propanol', 'butanol', 'pentanol', 'hexanol', 'heptanol', 'octanol', 'nonanol', 'decanol', 'undecanol', 'dodecanol', 'tridecanol', 'tetradecanol', 'pentadecanol', 'hexadecanol', 'octadecanol', 'nonadecanol', 'eicosanol'];
 		const aldehydes = ['methanal', 'ethanal', 'propanal', 'butanal', 'pentanal', 'hexanal', 'heptanal', 'octanal', 'nonanal', 'decanal', 'undecanal', 'dodecanal', 'tridecanal', 'tetradecanal', 'pentadecanal', 'hexadecanal', 'heptadecanal', 'octadecanal', 'nonadecanal', 'eicosanal'];
+		const bosses = [
+			['aceticanhydride', 'methacrylicacid'],
+			['trifluoroaceticacid', 'methanesulfonicacid'],
+			['tetraethylorthosilicate', '3-Aminopropyltriethoxysilane'],
+			['dichlorodiphenyltrichloroethane', 'ribonucleicacidhydroxypropyltrimoniumchloride'],
+			['ethylenediaminetetraaceticacidmagnesiumdisodiumsalttetrahydrate', 'madebyGyeonggiBukScienceHighSchoolUNREVR22nd']
+		];
 		const normalCycleLength = 20, easyCycleLength = 10;
-		let score = 0, lives = 3, waveIndex = 0, enemies = [], projectiles = [], last = 0, spawnTimer = 0, gameOver = false, cleared = false, levelUp = false, levelUpTimer = 0, levelSpeed = enemySpeed, mode = '';
+		let score = 0, lives = 3, waveIndex = 0, enemies = [], projectiles = [], last = 0, spawnTimer = 0, gameOver = false, cleared = false, levelUp = false, levelUpTimer = 0, levelSpeed = enemySpeed, bossActive = false, bossDefeated = false, bossIndex = 0, mode = '';
 		function hardName(carbonCount, suffix) {
 			const prefix = suffix === 'ene' || suffix === 'yne' ? hardPrefixes[carbonCount + 1] : hardPrefixes[carbonCount];
 			if (suffix === 'ane' && carbonCount === 1) return 'methane';
@@ -85,7 +95,7 @@
 					const el = document.createElement('div'); el.className = 'enemy ' + compound.type;
 					const y = 45 + rows[index] * 78;
 					el.style.top = y + 'px'; el.innerHTML = '<span class="word">' + compound.name + '</span>'; game.append(el);
-					enemies.push({ el, x: game.clientWidth + 20, y, name: compound.name, speed: levelSpeed });
+					enemies.push({ el, x: game.clientWidth + 20, y, name: compound.name, speed: levelSpeed, isBoss: false });
 				});
 				levelEl.textContent = 'Hard ' + level; waveIndex++; return;
 			}
@@ -105,9 +115,19 @@
 				const y = 45 + rows[index] * 78;
 				el.style.top = y + 'px';
 				el.innerHTML = '<span class="word">' + compound.name + '</span>'; game.append(el);
-				enemies.push({ el, x: game.clientWidth + 20, y, name: compound.name, speed: levelSpeed });
+				enemies.push({ el, x: game.clientWidth + 20, y, name: compound.name, speed: levelSpeed, isBoss: false });
 			});
 			levelEl.textContent = (mode === 'easy' ? 'Easy ' : 'Normal ') + level; waveIndex++;
+		}
+		function spawnBoss(cycleLength) {
+			const level = mode === 'boss' ? bossIndex + 1 : Math.floor(waveIndex / cycleLength);
+			const bossNames = bosses[level - 1];
+			const name = bossNames[0];
+			const el = document.createElement('div'); el.className = 'enemy boss';
+			const y = (game.clientHeight - 228) / 2;
+			el.style.top = y + 'px'; el.innerHTML = '<span class="word">' + name + '</span>'; game.append(el);
+			enemies.push({ el, x: game.clientWidth + 20, y, name, bossNames, bossLives: 2, speed: levelSpeed, isBoss: true });
+			bossActive = true; bossDefeated = false; game.classList.add('boss-fight'); if (mode === 'boss') bossIndex++;
 		}
 		function throwBall(enemy) {
 			const ball = document.createElement('div'); ball.className = 'projectile'; game.append(ball);
@@ -117,7 +137,7 @@
 		function attack() {
 			if (gameOver) return;
 			const targetName = input.value.trim().toLowerCase();
-			const target = enemies.find(enemy => enemy.name === targetName);
+			const target = enemies.find(enemy => enemy.name.toLowerCase() === targetName);
 			if (!target) return;
 			throwBall(target); input.value = '';
 		}
@@ -130,26 +150,31 @@
 				enemies = []; projectiles = [];
 			}
 		}
+		function loseAllLives() {
+			lives = 0; lifeCountEl.textContent = lives; gameOver = true; input.disabled = true; input.placeholder = '게임 오버';
+			enemies.forEach(enemy => enemy.el.remove()); projectiles.forEach(p => p.el.remove());
+			enemies = []; projectiles = []; bossActive = false; game.classList.remove('boss-fight');
+		}
 		function clearGame() {
 			cleared = true; gameOver = true; input.disabled = true; input.placeholder = '클리어!'; resultEl.textContent = '클리어!';
 		}
-		function startLevelUp(cycleLength) {
+		function startLevelUp(cycleLength, nextLevelOverride) {
 			const itemRoll = Math.random();
 			let itemText;
 			if (itemRoll < .5) { lives++; lifeCountEl.textContent = lives; itemText = '목숨 1개 추가'; }
 			else if (itemRoll < .75) { levelSpeed = Math.max(0, levelSpeed - speedReduction); itemText = '감속'; }
 			else itemText = '꽝';
 			levelUp = true; resultEl.innerHTML = '레벨업<small>아이템: ' + itemText + '</small>';
-			const nextLevel = Math.floor(waveIndex / cycleLength) + 1;
-			levelEl.textContent = (mode === 'easy' ? 'Easy ' : mode === 'hard' ? 'Hard ' : 'Normal ') + nextLevel;
+			const nextLevel = nextLevelOverride || Math.floor(waveIndex / cycleLength) + 1;
+			levelEl.textContent = (mode === 'easy' ? 'Easy ' : mode === 'hard' ? 'Hard ' : mode === 'boss' ? 'Boss ' : 'Normal ') + nextLevel;
 			levelUpTimer = setTimeout(() => {
 				levelUp = false; resultEl.textContent = '';
-				spawnTimer = 0; spawn(); requestAnimationFrame(loop);
+				spawnTimer = 0; if (mode === 'boss') spawnBoss(normalCycleLength); else spawn(); requestAnimationFrame(loop);
 			}, 3000);
 		}
 		function returnToStart() {
 			enemies.forEach(enemy => enemy.el.remove()); projectiles.forEach(p => p.el.remove());
-			clearTimeout(levelUpTimer); enemies = []; projectiles = []; score = 0; lives = 3; waveIndex = 0; last = 0; spawnTimer = 0; gameOver = false; cleared = false; levelUp = false; levelSpeed = enemySpeed; mode = '';
+			clearTimeout(levelUpTimer); enemies = []; projectiles = []; score = 0; lives = 3; waveIndex = 0; last = 0; spawnTimer = 0; gameOver = false; cleared = false; levelUp = false; levelSpeed = enemySpeed; bossActive = false; bossDefeated = false; bossIndex = 0; game.classList.remove('boss-fight'); mode = '';
 			scoreEl.textContent = score; lifeCountEl.textContent = lives; levelEl.textContent = '1'; resultEl.textContent = '';
 			input.disabled = false; input.placeholder = ''; input.value = ''; backButton.style.display = 'none'; modeSelectEl.style.display = 'grid'; input.focus();
 		}
@@ -160,19 +185,31 @@
 			const latestEnemyVisible = !latestEnemy || latestEnemy.x + 125 <= game.clientWidth;
 			const cycleLength = mode === 'easy' ? easyCycleLength : normalCycleLength;
 			const totalWaves = cycleLength * 5;
-			const canSpawn = waveIndex < totalWaves;
+			const canSpawn = mode !== 'boss' && waveIndex < totalWaves;
 			const levelBoundary = waveIndex > 0 && waveIndex % cycleLength === 0;
 			if (!gameOver && !levelBoundary && canSpawn && spawnTimer > 2.5 && latestEnemyVisible) { spawn(); spawnTimer = 0; }
-			enemies.forEach((enemy, i) => { enemy.x -= enemy.speed * dt; enemy.el.style.right = 'auto'; enemy.el.style.left = enemy.x + 'px'; if (enemy.x < 18) { enemy.el.remove(); enemies.splice(i, 1); loseLife(); } });
-			projectiles.forEach((p, i) => { const target = p.target; if (!target.el.isConnected) { p.el.remove(); projectiles.splice(i, 1); return; } const dx = target.x + 62.5 - p.x, dy = target.y + 38 - p.y, distance = Math.hypot(dx, dy); if (distance < 18) { target.el.remove(); enemies = enemies.filter(e => e !== target); p.el.remove(); projectiles.splice(i, 1); scoreEl.textContent = ++score; return; } p.x += dx / distance * 500 * dt; p.y += dy / distance * 500 * dt; p.el.style.left = p.x + 'px'; p.el.style.top = p.y + 'px'; });
+			enemies.forEach((enemy, i) => { enemy.x -= enemy.speed * dt; enemy.el.style.right = 'auto'; enemy.el.style.left = enemy.x + 'px'; if (enemy.x < 18) { enemy.el.remove(); enemies.splice(i, 1); if (enemy.isBoss) { bossActive = false; game.classList.remove('boss-fight'); if (mode === 'boss') bossIndex--; loseAllLives(); } else loseLife(); } });
+			projectiles.forEach((p, i) => { const target = p.target; if (!target.el.isConnected) { p.el.remove(); projectiles.splice(i, 1); return; } const targetWidth = target.isBoss ? 375 : 125, targetHeight = target.isBoss ? 228 : 76, dx = target.x + targetWidth / 2 - p.x, dy = target.y + targetHeight / 2 - p.y, distance = Math.hypot(dx, dy); if (distance < 18) { if (target.isBoss && target.bossLives > 1) { target.bossLives--; target.name = target.bossNames[1]; target.el.querySelector('.word').textContent = target.name; } else { target.el.remove(); enemies = enemies.filter(e => e !== target); if (target.isBoss) { bossActive = false; bossDefeated = true; game.classList.remove('boss-fight'); } scoreEl.textContent = ++score; } p.el.remove(); projectiles.splice(i, 1); return; } p.x += dx / distance * 500 * dt; p.y += dy / distance * 500 * dt; p.el.style.left = p.x + 'px'; p.el.style.top = p.y + 'px'; });
 			if (!gameOver && levelBoundary && !enemies.length && !projectiles.length) {
-				if (waveIndex >= totalWaves) clearGame();
-				else startLevelUp(cycleLength);
+				if (!bossActive && !bossDefeated) spawnBoss(cycleLength);
+				else if (bossDefeated) {
+					bossDefeated = false;
+					if (waveIndex >= totalWaves) clearGame();
+					else startLevelUp(cycleLength);
+				}
 			}
+			if (!gameOver && mode === 'boss' && bossDefeated && !enemies.length && !projectiles.length) {
+				bossDefeated = false;
+				if (bossIndex >= bosses.length) clearGame();
+				else startLevelUp(normalCycleLength, bossIndex + 1);
+			}
+			if (!gameOver && !levelUp && mode === 'boss' && !bossActive && !bossDefeated && !enemies.length && !projectiles.length) spawnBoss(normalCycleLength);
 			if (!gameOver) requestAnimationFrame(loop);
 		}
 		document.querySelectorAll('.modeButton').forEach(button => button.addEventListener('click', () => {
-			mode = button.dataset.mode; modeSelectEl.style.display = 'none'; backButton.style.display = 'block'; spawn(); input.focus(); requestAnimationFrame(loop);
+			mode = button.dataset.mode; modeSelectEl.style.display = 'none'; backButton.style.display = 'block';
+			if (mode === 'boss') spawnBoss(normalCycleLength); else spawn();
+			input.focus(); requestAnimationFrame(loop);
 		}));
 		backButton.addEventListener('click', returnToStart);
 		document.addEventListener('keydown', event => { if (event.key === 'Escape' && mode) returnToStart(); });
