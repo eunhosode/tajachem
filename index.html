@@ -135,13 +135,22 @@
 			projectiles.push({ el: ball, x: startX, y: startY, target: enemy });
 		}
 		function attack() {
-			if (gameOver) return;
+			if (gameOver) return false;
 			const targetName = input.value.trim().toLowerCase();
 			const target = enemies.find(enemy => enemy.name.toLowerCase() === targetName);
-			if (!target) return;
+			if (!target) return false;
 			throwBall(target); input.value = '';
+			return true;
 		}
-		input.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); attack(); } });
+		input.addEventListener('keydown', e => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				attack();
+			} else if (e.key === ' ') {
+				e.preventDefault();
+				if (!attack()) input.value = '';
+			}
+		});
 		function loseLife() {
 			lives--; lifeCountEl.textContent = lives;
 			if (lives === 0) {
