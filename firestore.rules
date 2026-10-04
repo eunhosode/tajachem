@@ -1,0 +1,132 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function validModeId(modeId) {
+      return modeId in [
+        'base',
+        'noHold', 'messier', 'gravity', 'volatile', 'double', 'invisible', 'allSpin', 'expert',
+        'comboHighPressure', 'comboMolecularEnsemble', 'comboCriticalDetonation',
+        'comboElementX', 'comboPeriodicTable',
+        'reverseNoHold', 'reverseMessier', 'reverseGravity', 'reverseVolatile',
+        'reverseDouble', 'reverseInvisible', 'reverseAllSpin', 'reverseExpert'
+      ];
+    }
+
+    function validProfile(uid) {
+      return owns(uid)
+        && request.resource.data.keys().hasOnly([
+          'nickname', 'photoURL', 'highestFloor', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'nickname', 'photoURL', 'highestFloor', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.nickname is string
+        && request.resource.data.nickname.size() > 0
+        && request.resource.data.nickname.size() <= 50
+        && request.resource.data.photoURL is string
+        && request.resource.data.photoURL.size() <= 2048
+        && request.resource.data.highestFloor is int
+        && request.resource.data.highestFloor >= 1
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validStats(uid, modeId) {
+      return owns(uid)
+        && validModeId(modeId)
+        && request.resource.data.keys().hasOnly([
+          'modeId', 'totalMeters', 'bestMeters', 'bestScore', 'bestFloor',
+          'reverseUnlocked', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'modeId', 'totalMeters', 'bestMeters', 'bestScore', 'bestFloor',
+          'reverseUnlocked', 'updatedAt'
+        ])
+        && request.resource.data.modeId == modeId
+        && request.resource.data.totalMeters is int
+        && request.resource.data.totalMeters >= 0
+        && request.resource.data.bestMeters is int
+        && request.resource.data.bestMeters >= 0
+        && request.resource.data.bestScore is int
+        && request.resource.data.bestScore >= 0
+        && request.resource.data.bestMeters == request.resource.data.bestScore * 5
+        && request.resource.data.totalMeters >= request.resource.data.bestMeters
+        && request.resource.data.bestFloor is int
+        && request.resource.data.bestFloor >= 1
+        && request.resource.data.reverseUnlocked is bool
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validRanking(uid, modeId) {
+      return owns(uid)
+        && validModeId(modeId)
+        && request.resource.data.keys().hasOnly([
+          'uid', 'nickname', 'bestMeters', 'bestScore', 'bestFloor', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'uid', 'nickname', 'bestMeters', 'bestScore', 'bestFloor', 'updatedAt'
+        ])
+        && request.resource.data.uid == uid
+        && request.resource.data.nickname is string
+        && request.resource.data.nickname.size() > 0
+        && request.resource.data.nickname.size() <= 50
+        && request.resource.data.bestMeters is int
+        && request.resource.data.bestMeters > 0
+        && request.resource.data.bestScore is int
+        && request.resource.data.bestScore > 0
+        && request.resource.data.bestMeters == request.resource.data.bestScore * 5
+        && request.resource.data.bestFloor is int
+        && request.resource.data.bestFloor >= 1
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    match /users/{uid} {
+      allow read: if owns(uid) || isAdmin();
+      allow create: if validProfile(uid);
+      allow update: if validProfile(uid)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.highestFloor >= resource.data.highestFloor;
+      allow delete: if isAdmin();
+
+      match /modeStats/{modeId} {
+        allow read: if owns(uid) || isAdmin();
+        allow create: if validStats(uid, modeId);
+        allow update: if validStats(uid, modeId)
+          && request.resource.data.totalMeters >= resource.data.totalMeters
+          && request.resource.data.bestMeters >= resource.data.bestMeters
+          && request.resource.data.bestScore >= resource.data.bestScore
+          && request.resource.data.bestFloor >= resource.data.bestFloor
+          && (!resource.data.reverseUnlocked || request.resource.data.reverseUnlocked);
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /rankings/{modeId}/entries/{uid} {
+      allow read: if true;
+      allow create: if validRanking(uid, modeId);
+      allow update: if validRanking(uid, modeId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.bestMeters > resource.data.bestMeters
+        && request.resource.data.bestScore > resource.data.bestScore
+        && request.resource.data.bestFloor >= resource.data.bestFloor;
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
