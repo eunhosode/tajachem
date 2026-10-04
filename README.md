@@ -1,85 +1,155 @@
 # TAJACHEM
 
-A browser typing game where you defeat enemies by typing chemical compound names.
-Practice the names of alkanes, alkenes, alkynes, alcohols, and aldehydes while you play.
+TAJACHEM은 화면 오른쪽에서 다가오는 적의 유기 화합물 이름 또는 분자식을 입력해 처치하는 브라우저 타자 게임입니다.
 
-## Play Online
+기본 규칙에 화학자 카드로 표현된 모드를 조합할 수 있으며, 각 카드에는 더 어려운 강화 규칙도 있습니다. 현재 버전에는 보스와 레벨업 아이템이 없고, 목숨이 모두 소진될 때까지 레벨을 계속 올라가는 무한 진행 방식이 적용되어 있습니다.
 
-The game is deployed as a static website with GitHub Pages.
+## 실행
 
-1. Open the repository's GitHub Pages URL.
-2. Choose a game mode.
-3. Type the chemical name shown on an enemy.
+`tajachem.html`과 8개의 화학자 이미지가 같은 폴더에 있어야 합니다. 별도의 빌드 과정 없이 `tajachem.html`을 브라우저에서 열면 실행됩니다.
 
-## Controls
+Firebase Web SDK와 프로젝트 초기화 설정이 연결되어 있으며, Google 로그인과 Firestore 온라인 랭킹이 구현되어 있습니다. Firebase Hosting 배포는 CLI로 진행합니다.
 
-- Type the chemical name displayed on an enemy.
-- `Enter` or `Space`: Attack
-- `Back` button or `Esc`: Return to the mode-selection screen
-- An enemy reaching the left edge costs one life.
-- The game ends when all three lives are lost.
-- All enemies in the current level must be defeated before the next level begins.
-- A `Level Up` message and an item result appear for 3 seconds between levels.
+## 게임 방법
 
-## Level-Up Items
+1. 모드를 선택하지 않으면 기본 규칙으로 시작합니다.
+2. 화학자 카드를 짧게 누르면 일반 모드가 선택됩니다. 일반 모드는 여러 개를 중첩할 수 있습니다.
+3. 카드를 약 0.6초간 길게 누르면 해당 카드의 강화 모드가 선택됩니다. 강화 모드는 한 종류만 단독으로 적용됩니다.
+4. `게임 시작`을 누르고 적에게 표시된 정답을 입력해 발사합니다.
+5. 적이 플레이어에게 도달하면 목숨을 1개 잃습니다. 목숨이 0이 되면 게임이 끝납니다.
 
-One item is selected whenever the player levels up:
+키보드로 카드를 선택할 때 `Shift + Enter` 또는 `Shift + Space`를 누르면 강화 모드를 선택할 수 있습니다. 길게 누르기 어려운 경우 카드 위의 `강화 모드 바로 선택` 메뉴도 사용할 수 있습니다.
 
-- 50%: `+1 Life`
-- 25%: `Slow Down`
-	- Reduces enemy speed by 6.
-	- The effect lasts through all later levels.
-	- Multiple Slow Down items stack.
-- 25%: `Miss`
-	- No effect.
+## 조작법
 
-Enemy speed starts at 36. For example, two Slow Down items reduce it to 24.
+- 화합물 이름 입력 후 `Enter` 또는 `Space`: 발사
+- `Esc` 또는 `모드 선택` 버튼: 게임을 중단하고 모드 선택 화면으로 이동
+- `Caps Lock`: 게임 입력에 적용되지 않음
+- 이름에 포함될 수 있는 공백과 하이픈은 입력하지 않아도 됨
+- 분자식은 일반 숫자와 아래첨자 숫자를 모두 인식함
 
-## Game Modes
+베르셀리우스 모드에서는 `Caps Lock` 대신 `Shift`를 사용해 대문자를 입력해야 합니다. 일반은 모든 글자를 대문자로, 강화는 대문자와 소문자를 번갈아 입력합니다.
 
-### Easy
+## 점수와 레벨
 
-- 10 waves per level
-- Level 1: Alkanes
-- Level 2: Alkanes + alkenes
-- Level 3: Alkanes + alkenes + alkynes
-- Level 4: Alkanes + alkenes + alkynes + alcohols
-- Level 5: Alkanes + alkenes + alkynes + alcohols + aldehydes
-- Clear the fifth level to finish the game.
+- 웨이브 하나를 모두 처리하면 5점을 얻습니다.
+- 게임 시작 시 목숨은 3개입니다.
+- 한 레벨을 통과할 때마다 목숨을 1개 얻습니다.
+- 레벨이 높아질수록 적의 기본 속도가 증가합니다.
+- 10레벨 이후에도 게임은 끝나지 않고 계속 진행됩니다.
 
-### Normal
+| 레벨 | 웨이브 | 필요 점수 | 시작 점수 |
+| ---: | ---: | ---: | ---: |
+| 1 | 10 | 50점 | 0점 |
+| 2 | 20 | 100점 | 50점 |
+| 3 | 30 | 150점 | 150점 |
+| 4 | 30 | 150점 | 300점 |
+| 5 | 40 | 200점 | 450점 |
+| 6 | 40 | 200점 | 650점 |
+| 7 | 50 | 250점 | 850점 |
+| 8 | 50 | 250점 | 1,100점 |
+| 9 | 60 | 300점 | 1,350점 |
+| 10 | 60 | 300점 | 1,650점 |
+| 11 | 70 | 350점 | 1,950점 |
+| 12 | 70 | 350점 | 2,300점 |
 
-- 20 waves per level
-- Uses the same compound progression as Easy.
-- Clear the fifth level to finish the game.
+11레벨부터는 두 레벨마다 웨이브가 10개, 즉 필요 점수가 50점씩 증가합니다. 예를 들어 13·14레벨은 각각 80웨이브(400점), 15·16레벨은 각각 90웨이브(450점)입니다.
 
-### Hard
+레벨별 기본 속도 배율은 아래 식을 사용합니다.
 
-- 20 waves per level
-- Compound numbers continue across levels instead of resetting.
-- Alkanes: 1-100
-- Alkenes: 1-80
-- Alkynes: 1-60
-- Alcohols: 1-40
-- Aldehydes: 1-20 in level 5
-- Clear the fifth level to finish the game.
+```text
+1 + (현재 레벨 - 1) × 0.10 + (현재 레벨 - 1)² × 0.006
+```
 
-## Enemy Colors
+## 기본 규칙
 
-| Family | Color |
+- 웨이브마다 알케인 적 1개가 등장합니다.
+- 각 레벨에서는 탄소 수가 다시 1부터 시작합니다.
+- 화면에 표시된 영문 화합물 이름을 소문자로 입력합니다.
+- 다음 웨이브는 2.5초 간격으로 등장하므로 여러 웨이브가 동시에 남아 있을 수 있습니다.
+
+## 게임 모드
+
+| 모드 | 일반 | 강화 |
+| --- | --- | --- |
+| 베르셀리우스 모드 | 이름 전체를 대문자로 입력 | `MeThAnE`처럼 대·소문자를 교대로 입력 |
+| 호프만 모드 | 첫 웨이브는 메테인, 이후 웨이브마다 알케인·알켄·알카인 중 하나가 무작위 등장 | 웨이브마다 에터·아민·설파이드 중 하나가 무작위 등장 |
+| 보일 모드 | 경기장 너비가 기본의 약 2/3로 감소 | 경기장 너비가 기본의 약 1/2로 감소 |
+| 노벨 모드 | 2/3선 전에 웨이브를 처리하면 다음 웨이브 감속, 넘기면 다음 웨이브 가속 | 2/3선을 넘길 때마다 가속이 영구 누적 |
+| 루이스 모드 | 한 웨이브에 적 2개 등장 | 한 웨이브에 적 3개 등장 |
+| 퀴리 모드 | 적이 경기장 절반을 지나면 이름 공개 | 이름이 끝까지 공개되지 않음 |
+| 라부아지에 모드 | 이름과 분자식을 모두 정답으로 사용할 수 있으며 같은 표기를 연속 사용하면 반대 표기를 요구하는 Wound 1개 생성 | 반복 시 빠른 Wound 2개가 생성되며, 기존 Wound를 남긴 채 다시 반복하면 목숨 감소 |
+| 멘델레예프 모드 | 레벨이 바뀌어도 탄소 수가 초기화되지 않음 | 탄소 수가 초기화되지 않으며 분자식을 보고 화합물 이름 입력 |
+
+라부아지에 모드의 Wound 속도도 레벨별 속도 배율의 영향을 받습니다.
+
+### 모드 조합 규칙
+
+- 일반 모드는 여러 개를 동시에 선택할 수 있습니다.
+- 강화 모드를 선택하면 선택되어 있던 일반 모드가 모두 해제됩니다.
+- 강화 모드끼리 또는 강화와 일반 모드는 중첩할 수 없습니다.
+- 호프만 모드와 루이스 모드를 함께 사용하면 첫 웨이브에는 메테인 1개만 등장하고, 이후에는 같은 계열의 적 2개가 등장합니다.
+- 노벨 모드의 속도 변화는 레벨별 속도 증가와 곱해져 적용됩니다.
+
+다음의 정확한 조합을 선택하면 선택 요약과 게임 화면에 중첩 모드 이름이 표시됩니다. 각 과학자 모드의 효과는 그대로 중첩되며 조합별 온라인 랭킹이 따로 저장됩니다.
+
+| 선택한 모드 | 표시 이름 |
 | --- | --- |
-| Alkane | Red |
-| Alkene | Orange |
-| Alkyne | Yellow |
-| Alcohol | Green |
-| Aldehyde | Blue |
+| 베르셀리우스 + 보일 | 고압 모드 |
+| 호프만 + 루이스 | 분자 앙상블 모드 |
+| 베르셀리우스 + 보일 + 노벨 | 임계 폭발 모드 |
+| 퀴리 + 멘델레예프 | 원소 X 모드 |
+| 라부아지에 + 멘델레예프 | 주기율표 모드 |
 
-## Built With
+## 로그인, 해금 및 온라인 랭킹
 
-- One standalone HTML file
-- CSS embedded in the `<style>` section
-- Vanilla JavaScript embedded in the `<script>` section
+- 비로그인 상태에서는 기본 규칙만 플레이할 수 있으며 온라인 기록은 저장되지 않습니다.
+- Google 로그인 후 첫 플레이 시 Firestore 사용자 문서가 자동 생성됩니다.
+- 2레벨부터 9레벨까지 도달할 때마다 베르셀리우스 모드부터 멘델레예프 모드까지 순서대로 해금됩니다.
+- 일반 모드별 누적 점수가 30,000점에 도달하면 해당 강화 모드가 해금됩니다.
+- 랭킹 선택지는 기본 모드, 이름이 지정된 중첩 모드, 강화 모드 순서로 표시됩니다.
+- 기본 규칙과 일반 단일 모드, 이름이 지정된 다섯 중첩 모드, 강화 단일 모드에는 각각 별도의 온라인 랭킹이 있습니다.
+- 이름이 지정되지 않은 일반 모드 조합은 플레이할 수 있지만 온라인 랭킹에는 반영되지 않습니다.
+- 랭킹에는 계정별·모드별 최고 기록 하나만 저장됩니다.
+- 전체 랭킹에는 상위 10명이 표시되며, 개인 랭킹에는 선택한 모드의 내 최고 기록과 전체 순위가 표시됩니다.
 
-## Files
+Firestore 데이터는 다음 구조를 사용합니다.
 
-- `tajachem.html`: Game source
+```text
+users/{uid}
+users/{uid}/modeStats/{modeId}
+rankings/{modeId}/entries/{uid}
+```
+
+`firestore.rules`를 Firebase Console의 Firestore `규칙` 탭에 게시하거나 Firebase CLI로 배포해야 로그인 기록 저장이 작동합니다.
+
+## 프로젝트 구조
+
+```text
+tajachem/
+├─ tajachem.html              # 게임 UI, 스타일 및 게임 로직
+├─ firestore.rules            # 사용자 기록 및 랭킹 보안 규칙
+├─ README.md
+├─ Alfred_Nobel.jpg
+├─ Antoine_Lavoisier.jpg
+├─ August_W_Hofmann.jpg
+├─ Dmitri_Mendeleev.jpg
+├─ Gilbert_N_Lewis.jpg
+├─ Jöns_Jacob_Berzelius.jpg
+├─ Marie_Curie.jpg
+└─ Robert_Boyle.jpg
+```
+
+## 기술 구성
+
+- HTML 한 파일에 포함된 CSS와 Vanilla JavaScript
+- Firebase Web SDK 12.19.0 브라우저 모듈
+- 외부 게임 프레임워크 및 빌드 도구 없음
+- 데스크톱과 모바일 포인터 조작 지원
+- 접근성을 위한 키보드 카드 선택 및 상태 안내 포함
+
+## 남은 작업
+
+- 관리자 전용 랭킹 관리 화면 및 관리자 Custom Claim 부여
+- 서버 측 점수 검증을 통한 조작 방지
+- GitHub 저장소와 Firebase Hosting 자동 배포
