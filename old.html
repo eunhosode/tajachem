@@ -1,0 +1,1260 @@
+<!doctype html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>TAJACHEM</title>
+	<style>
+		:root {
+			--ink: #233247;
+			--muted: #718096;
+			--paper: #fffdf7;
+			--blue: #4568dc;
+			--gold: #f4b942;
+			--red: #e54864;
+			--red-dark: #ad2946;
+			--reverse: #6e3cbc;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			min-height: 100vh;
+			display: grid;
+			place-items: center;
+			padding: 12px;
+			background: radial-gradient(circle at top, #f8fbff 0, #e8edf5 72%);
+			font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			color: var(--ink);
+		}
+		button, input { font: inherit; }
+		button { -webkit-tap-highlight-color: transparent; }
+		#game {
+			width: min(1100px, 96vw);
+			height: min(700px, calc(100vh - 24px));
+			position: relative;
+			overflow: hidden;
+			background: #fff;
+			border: 3px solid var(--ink);
+			border-radius: 18px;
+			box-shadow: 0 18px 50px #1723382b;
+		}
+		#game.selection-open { width: min(1380px, 97vw); }
+		#game.gravity-normal { width: min(733px, 64vw); }
+		#game.gravity-reverse { width: min(550px, 48vw); }
+		#info {
+			position: absolute;
+			z-index: 5;
+			top: 12px;
+			left: 18px;
+			right: 142px;
+			display: flex;
+			align-items: center;
+			gap: 9px;
+			flex-wrap: wrap;
+			font-weight: 800;
+		}
+		.infoPill {
+			padding: 5px 10px;
+			background: #f1f5fb;
+			border: 1px solid #d9e2ef;
+			border-radius: 999px;
+		}
+		#lives { color: var(--red-dark); }
+		#speedStatus { color: #6844ad; }
+		#activeModes {
+			position: absolute;
+			z-index: 5;
+			top: 53px;
+			left: 18px;
+			right: 150px;
+			min-height: 25px;
+			display: flex;
+			gap: 6px;
+			flex-wrap: wrap;
+		}
+		.modeChip {
+			padding: 3px 8px;
+			border-radius: 999px;
+			background: #e8efff;
+			color: #3154b2;
+			font-size: 12px;
+			font-weight: 800;
+		}
+		.modeChip.reverse { background: #eee4ff; color: #6530ad; }
+		#hint {
+			position: absolute;
+			z-index: 5;
+			right: 18px;
+			top: 86px;
+			max-width: 360px;
+			color: var(--muted);
+			font-size: 13px;
+			text-align: right;
+		}
+		#thresholdLine {
+			position: absolute;
+			z-index: 1;
+			left: 66.666%;
+			top: 92px;
+			bottom: 64px;
+			display: none;
+			border-left: 2px dashed #ef8a24;
+			pointer-events: none;
+		}
+		#thresholdLine::before {
+			content: "2/3";
+			position: absolute;
+			top: 0;
+			left: 5px;
+			padding: 2px 5px;
+			border-radius: 5px;
+			background: #fff1df;
+			color: #b75a00;
+			font-size: 11px;
+			font-weight: 900;
+		}
+		#game.volatile-active #thresholdLine { display: block; }
+		#player {
+			position: absolute;
+			left: 0;
+			top: 53%;
+			z-index: 2;
+			width: 68px;
+			height: 86px;
+			transform: translateY(-50%);
+		}
+		.head { width: 42px; height: 42px; margin: auto; border-radius: 50%; background: #ffd166; border: 3px solid var(--ink); }
+		.body { width: 58px; height: 43px; margin: 0 auto; background: #4f7cff; border: 3px solid var(--ink); border-radius: 18px 18px 8px 8px; }
+		.arm { position: absolute; width: 36px; height: 12px; right: -18px; top: 48px; background: #ffd166; border: 3px solid var(--ink); border-radius: 10px; transform: rotate(-18deg); }
+		.enemy {
+			position: absolute;
+			width: 134px;
+			min-height: 74px;
+			padding: 24px 7px 9px;
+			text-align: center;
+			color: #fff;
+			font-weight: 850;
+			background: var(--red);
+			border: 3px solid var(--ink);
+			border-radius: 42% 45% 45% 42%;
+			box-shadow: 0 5px 0 var(--red-dark);
+		}
+		.enemy::before, .enemy::after { content: ""; position: absolute; top: 8px; width: 9px; height: 9px; background: var(--ink); border-radius: 50%; }
+		.enemy::before { left: 18px; }
+		.enemy::after { right: 18px; }
+		.enemy.wound { background: #bc244c; box-shadow: 0 5px 0 #78142e, 0 0 0 4px #ffd1dc; }
+		.enemy.wound .woundTag {
+			position: absolute;
+			top: -12px;
+			left: 50%;
+			transform: translateX(-50%);
+			padding: 2px 7px;
+			border: 2px solid var(--ink);
+			border-radius: 999px;
+			background: #fff;
+			color: #9b1637;
+			font-size: 10px;
+			letter-spacing: .08em;
+		}
+		.word {
+			position: relative;
+			z-index: 1;
+			display: inline-block;
+			max-width: 100%;
+			padding: 3px 7px;
+			background: var(--ink);
+			border-radius: 6px;
+			font-size: 13px;
+			letter-spacing: .02em;
+			overflow-wrap: anywhere;
+			transition: opacity .18s ease;
+		}
+		.enemy.hidden-word .word { opacity: 0; }
+		.projectile { position: absolute; z-index: 3; width: 18px; height: 18px; border-radius: 50%; background: #ffb703; border: 3px solid var(--ink); }
+		.ground { position: absolute; bottom: 56px; left: 0; right: 0; height: 4px; background: var(--ink); }
+		#input {
+			position: absolute;
+			z-index: 5;
+			left: 50%;
+			bottom: 11px;
+			transform: translateX(-50%);
+			width: min(390px, 72%);
+			padding: 9px 14px;
+			border: 2px solid #9aaabd;
+			border-radius: 9px;
+			font-size: 18px;
+			text-align: center;
+			outline: none;
+		}
+		#input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #4568dc22; }
+		#input:disabled { background: #edf1f6; }
+		#result {
+			position: absolute;
+			z-index: 7;
+			inset: 0;
+			display: none;
+			place-items: center;
+			padding: 20px;
+			background: #ffffffd9;
+			color: var(--ink);
+			font-size: clamp(38px, 7vw, 64px);
+			font-weight: 950;
+			text-align: center;
+			pointer-events: none;
+		}
+		#result.show { display: grid; }
+		#result small { display: block; margin-top: 12px; color: var(--muted); font-size: 18px; }
+		#toast {
+			position: absolute;
+			z-index: 10;
+			left: 50%;
+			top: 100px;
+			max-width: min(520px, 86%);
+			padding: 9px 15px;
+			border: 2px solid var(--ink);
+			border-radius: 999px;
+			background: #fff;
+			box-shadow: 0 7px 18px #17233825;
+			font-weight: 850;
+			text-align: center;
+			opacity: 0;
+			transform: translate(-50%, -12px);
+			transition: .2s ease;
+			pointer-events: none;
+		}
+		#toast.show { opacity: 1; transform: translate(-50%, 0); }
+		#backButton {
+			position: absolute;
+			z-index: 9;
+			top: 11px;
+			right: 16px;
+			display: none;
+			padding: 7px 11px;
+			border: 2px solid #9aaabd;
+			border-radius: 8px;
+			color: var(--ink);
+			background: #fff;
+			font-weight: 800;
+			cursor: pointer;
+		}
+		#backButton:hover { background: #eef2f7; }
+		#modeSelect {
+			position: absolute;
+			z-index: 20;
+			inset: 0;
+			overflow-y: auto;
+			padding: 14px clamp(16px, 3vw, 34px) 20px;
+			background:
+				linear-gradient(#fffdf8f2, #f6f0e6f5),
+				repeating-linear-gradient(90deg, transparent 0 38px, #9b6a3a0b 39px 40px);
+		}
+		#modeSelect[hidden] { display: none; }
+		.modePanel { width: min(1000px, 100%); margin: 0 auto; text-align: center; }
+		.modePanel h1 { margin: 0; font-size: clamp(32px, 5vw, 44px); line-height: 1; letter-spacing: .11em; }
+		.modePanel h2 { margin: 5px 0 2px; color: #526179; font-size: 17px; }
+		.selectionWorkspace { display: block; }
+		.modeChooser { min-width: 0; }
+		.instructions { margin: 0 auto 8px; color: var(--muted); font-size: 13px; }
+		.reverseAccess { margin: -2px auto 8px; color: #5a3a82; font-size: 12px; }
+		.reverseAccess summary { width: fit-content; margin: auto; cursor: pointer; font-weight: 800; }
+		.reverseButtons { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+		.reverseShortcut { padding: 5px 8px; border: 1px solid #b9a0dc; border-radius: 999px; background: #f7f1ff; color: #553080; cursor: pointer; font-size: 11px; font-weight: 800; }
+		.reverseShortcut:hover, .reverseShortcut[aria-pressed="true"] { border-color: var(--reverse); background: var(--reverse); color: #fff; }
+		.reverseShortcut:disabled { border-color: #ccd1d8; background: #eceff3; color: #8993a0; cursor: not-allowed; }
+		.cardGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px 12px; }
+		.modeCard {
+			position: relative;
+			display: flex;
+			flex-direction: column;
+			min-width: 0;
+			padding: 0 0 10px;
+			overflow: hidden;
+			border: 3px solid #cfd8e4;
+			border-radius: 13px;
+			background: #fff;
+			color: var(--ink);
+			box-shadow: 0 5px 0 #c7d0dc;
+			text-align: left;
+			cursor: pointer;
+			user-select: none;
+			touch-action: manipulation;
+			transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+		}
+		.modeCard:hover { transform: translateY(-2px); border-color: #8799b0; }
+		.modeCard:focus-visible { outline: 4px solid #2e73ff66; outline-offset: 3px; }
+		.modeCard::after {
+			content: "";
+			position: absolute;
+			z-index: 4;
+			left: 0;
+			bottom: 0;
+			width: 0;
+			height: 6px;
+			background: var(--reverse);
+		}
+		.modeCard.pressing::after { width: 100%; transition: width .62s linear; }
+		.modeCard.selected { border-color: var(--blue); box-shadow: 0 5px 0 #294db5, 0 0 0 3px #4568dc22; }
+		.modeCard.reverse { border-color: var(--reverse); box-shadow: 0 5px 0 #472383, 0 0 0 3px #6e3cbc28; }
+		.cardPortrait { position: relative; display: block; flex: 0 0 100px; height: 100px; overflow: hidden; background: #dfe5ed; }
+		.cardPortrait img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center 18%; pointer-events: none; transition: transform .35s ease, filter .25s ease; }
+		.modeCard.reverse .cardPortrait img { transform: rotate(180deg) scale(1.12); filter: grayscale(.15) contrast(1.08) saturate(.8); }
+		.stateBadge {
+			position: absolute;
+			z-index: 3;
+			top: 8px;
+			right: 8px;
+			display: none;
+			padding: 4px 7px;
+			border-radius: 999px;
+			background: var(--blue);
+			color: #fff;
+			font-size: 10px;
+			font-weight: 950;
+			letter-spacing: .08em;
+		}
+		.modeCard.selected .stateBadge { display: block; }
+		.modeCard.reverse .stateBadge { display: block; background: var(--reverse); }
+		.cardBody { display: flex; flex: 1; flex-direction: column; padding: 9px 10px 0; }
+		.modeName { display: block; font-size: 15px; font-weight: 950; }
+		.effect { display: block; margin-top: 6px; color: #526179; font-size: 11px; line-height: 1.32; }
+		.reverseEffect { color: #6c398f; }
+		.selectionFooter { position: sticky; bottom: -28px; z-index: 5; margin: 17px -6px -20px; padding: 12px 6px 20px; background: linear-gradient(transparent, #f6f0e6 18%); }
+		#selectionSummary { min-height: 24px; margin-bottom: 8px; color: #4b596d; font-size: 14px; font-weight: 800; }
+		#startButton {
+			min-width: 190px;
+			padding: 11px 28px;
+			border: 0;
+			border-radius: 10px;
+			background: var(--blue);
+			color: #fff;
+			box-shadow: 0 5px 0 #284bad;
+			font-size: 18px;
+			font-weight: 900;
+			cursor: pointer;
+		}
+		#startButton:hover { background: #3458cb; }
+		#startButton:active { transform: translateY(3px); box-shadow: 0 2px 0 #284bad; }
+		.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+		@media (max-width: 820px) {
+			.cardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+			.cardPortrait { flex-basis: 130px; height: 130px; }
+			#hint { top: 84px; max-width: 260px; }
+		}
+		@media (max-width: 500px) {
+			body { padding: 5px; }
+			#game, #game.gravity-normal, #game.gravity-reverse { height: calc(100vh - 10px); border-radius: 12px; }
+			#game { width: calc(100vw - 10px); }
+			#game.gravity-normal { width: calc(66.667vw - 6.667px); }
+			#game.gravity-reverse { width: calc(50vw - 5px); }
+			#modeSelect { padding: 18px 12px 24px; }
+			.cardGrid { gap: 9px; }
+			.cardPortrait { flex-basis: 112px; height: 112px; }
+			.cardBody { padding: 7px 8px 0; }
+			.effect { font-size: 10px; }
+			#info { left: 10px; right: 105px; gap: 5px; font-size: 12px; }
+			.infoPill { padding: 4px 7px; }
+			#activeModes { left: 10px; right: 8px; top: 72px; }
+			#hint { display: none; }
+			#backButton { right: 8px; font-size: 12px; }
+			#thresholdLine { top: 104px; }
+			#toast { top: 112px; font-size: 12px; }
+			.enemy { width: 118px; }
+			#input { width: 78%; font-size: 16px; }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			*, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+			.modeCard.pressing::after { transition-duration: .62s !important; }
+		}
+	</style>
+</head>
+<body>
+	<main id="game" class="selection-open" aria-label="TAJACHEM 타자 게임">
+		<div id="info">
+			<span class="infoPill">레벨 <span id="level">1</span></span>
+			<span class="infoPill">웨이브 <span id="wave">0/10</span></span>
+			<span class="infoPill">통과 웨이브 <span id="score">0</span></span>
+			<span class="infoPill">점수 <span id="height">0점</span></span>
+			<span id="lives" class="infoPill">목숨 <span id="lifeCount">3</span></span>
+			<span id="speedStatus" class="infoPill">속도 ×1.00</span>
+		</div>
+		<div id="activeModes" aria-label="적용 중인 모드"></div>
+		<div id="hint">화합물 이름을 입력하고 Enter</div>
+		<div id="thresholdLine" aria-hidden="true"></div>
+		<div id="player"><div class="head"></div><div class="body"></div><div class="arm"></div></div>
+		<div class="ground"></div>
+		<div id="result" role="status"></div>
+		<div id="toast" aria-live="polite"></div>
+		<button id="backButton" type="button">모드 선택</button>
+		<input id="input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="" disabled aria-label="화합물 정답 입력">
+
+		<section id="modeSelect" aria-labelledby="selectTitle">
+			<div class="modePanel">
+				<h1 id="selectTitle">TAJACHEM</h1>
+				<h2>화학자 카드로 규칙을 조합하세요</h2>
+				<div class="selectionWorkspace">
+					<div class="modeChooser">
+						<p class="instructions">짧게 누르기: 일반 모드(중첩 가능) · 길게 누르기: 강화 모드(단독 적용) · 키보드에서는 Shift+Enter로 강화</p>
+						<details class="reverseAccess">
+							<summary>길게 누르기 어려운 경우: 강화 모드 바로 선택</summary>
+							<div class="reverseButtons" role="group" aria-label="강화 모드 바로 선택">
+								<button class="reverseShortcut" type="button" data-reverse-mode="noHold" aria-pressed="false">베르셀리우스 모드</button>
+								<button class="reverseShortcut" type="button" data-reverse-mode="messier" aria-pressed="false">호프만 모드</button>
+								<button class="reverseShortcut" type="button" data-reverse-mode="gravity" aria-pressed="false">보일 모드</button>
+								<button class="reverseShortcut" type="button" data-reverse-mode="volatile" aria-pressed="false">노벨 모드</button>
+								<button class="reverseShortcut" type="button" data-reverse-mode="double" aria-pressed="false">루이스 모드</button>
+								<button class="reverseShortcut" type="button" data-reverse-mode="invisible" aria-pressed="false">퀴리 모드</button>
+								<button class="reverseShortcut" type="button" data-reverse-mode="allSpin" aria-pressed="false">라부아지에 모드</button>
+								<button class="reverseShortcut" type="button" data-reverse-mode="expert" aria-pressed="false">멘델레예프 모드</button>
+							</div>
+						</details>
+						<div class="cardGrid">
+					<button class="modeCard" type="button" data-mode="noHold">
+						<span class="cardPortrait"><img src="Jöns_Jacob_Berzelius.jpg" alt="옌스 야코브 베르셀리우스 초상화" draggable="false"><span class="stateBadge">NORMAL</span></span>
+						<span class="cardBody"><span class="modeName">베르셀리우스 모드</span><span class="effect">일반 · 모든 이름이 대문자(Caps Lock 무시)</span><span class="effect reverseEffect">강화 · MeThAnE처럼 교대(Caps Lock 무시)</span></span>
+					</button>
+					<button class="modeCard" type="button" data-mode="messier">
+						<span class="cardPortrait"><img src="August_W_Hofmann.jpg" alt="아우구스트 빌헬름 폰 호프만 초상화" draggable="false"><span class="stateBadge">NORMAL</span></span>
+						<span class="cardBody"><span class="modeName">호프만 모드</span><span class="effect">일반 · 첫 웨이브 메테인, 이후 세 계열 중 하나</span><span class="effect reverseEffect">강화 · 매 웨이브 에터·아민·설파이드 중 하나</span></span>
+					</button>
+					<button class="modeCard" type="button" data-mode="gravity">
+						<span class="cardPortrait"><img src="Robert_Boyle.jpg" alt="로버트 보일 초상화" draggable="false"><span class="stateBadge">NORMAL</span></span>
+						<span class="cardBody"><span class="modeName">보일 모드</span><span class="effect">일반 · 경기장 너비 2/3</span><span class="effect reverseEffect">강화 · 경기장 너비 1/2</span></span>
+					</button>
+					<button class="modeCard" type="button" data-mode="volatile">
+						<span class="cardPortrait"><img src="Alfred_Nobel.jpg" alt="알프레드 노벨 초상화" draggable="false"><span class="stateBadge">NORMAL</span></span>
+						<span class="cardBody"><span class="modeName">노벨 모드</span><span class="effect">일반 · 2/3선 결과가 다음 웨이브 속도에 영향</span><span class="effect reverseEffect">강화 · 실패 가속 영구 누적</span></span>
+					</button>
+					<button class="modeCard" type="button" data-mode="double">
+						<span class="cardPortrait"><img src="Gilbert_N_Lewis.jpg" alt="길버트 뉴턴 루이스 초상화" draggable="false"><span class="stateBadge">NORMAL</span></span>
+						<span class="cardBody"><span class="modeName">루이스 모드</span><span class="effect">일반 · 한 번에 적 2개</span><span class="effect reverseEffect">강화 · 한 번에 적 3개</span></span>
+					</button>
+					<button class="modeCard" type="button" data-mode="invisible">
+						<span class="cardPortrait"><img src="Marie_Curie.jpg" alt="마리 퀴리 사진" draggable="false"><span class="stateBadge">NORMAL</span></span>
+						<span class="cardBody"><span class="modeName">퀴리 모드</span><span class="effect">일반 · 절반 이후 이름 공개</span><span class="effect reverseEffect">강화 · 끝까지 이름 비공개</span></span>
+					</button>
+					<button class="modeCard" type="button" data-mode="allSpin">
+						<span class="cardPortrait"><img src="Antoine_Lavoisier.jpg" alt="앙투안 라부아지에 초상화" draggable="false"><span class="stateBadge">NORMAL</span></span>
+						<span class="cardBody"><span class="modeName">라부아지에 모드</span><span class="effect">일반 · 반복 시 반대 표기 Wound 1개</span><span class="effect reverseEffect">강화 · 반복 시 빠른 반대 표기 Wound 2개</span></span>
+					</button>
+					<button class="modeCard" type="button" data-mode="expert">
+						<span class="cardPortrait"><img src="Dmitri_Mendeleev.jpg" alt="드미트리 멘델레예프 사진" draggable="false"><span class="stateBadge">NORMAL</span></span>
+						<span class="cardBody"><span class="modeName">멘델레예프 모드</span><span class="effect">일반 · 레벨 사이 탄소 수 초기화 없음</span><span class="effect reverseEffect">강화 · 분자식을 보고 이름 입력</span></span>
+					</button>
+						</div>
+					</div>
+				</div>
+				<div class="selectionFooter">
+					<div id="selectionSummary" aria-live="polite">적용 중: 기본 규칙</div>
+					<button id="startButton" type="button">게임 시작</button>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+		(function () {
+			"use strict";
+
+			const game = document.querySelector("#game");
+			const input = document.querySelector("#input");
+			const scoreEl = document.querySelector("#score");
+			const heightEl = document.querySelector("#height");
+			const lifeCountEl = document.querySelector("#lifeCount");
+			const levelEl = document.querySelector("#level");
+			const waveEl = document.querySelector("#wave");
+			const speedStatusEl = document.querySelector("#speedStatus");
+			const activeModesEl = document.querySelector("#activeModes");
+			const hintEl = document.querySelector("#hint");
+			const resultEl = document.querySelector("#result");
+			const toastEl = document.querySelector("#toast");
+			const modeSelectEl = document.querySelector("#modeSelect");
+			const selectionSummaryEl = document.querySelector("#selectionSummary");
+			const startButton = document.querySelector("#startButton");
+			const backButton = document.querySelector("#backButton");
+			const modeCards = Array.from(document.querySelectorAll(".modeCard"));
+			const reverseShortcuts = Array.from(document.querySelectorAll(".reverseShortcut"));
+
+			const MODE_META = {
+				noHold: { label: "베르셀리우스 모드" },
+				messier: { label: "호프만 모드" },
+				gravity: { label: "보일 모드" },
+				volatile: { label: "노벨 모드" },
+				double: { label: "루이스 모드" },
+				invisible: { label: "퀴리 모드" },
+				allSpin: { label: "라부아지에 모드" },
+				expert: { label: "멘델레예프 모드" }
+			};
+			const MODE_KEYS = Object.freeze(Object.keys(MODE_META));
+			const COMBINATION_MODES = Object.freeze({
+				"noHold+gravity": { id: "comboHighPressure", label: "고압 모드" },
+				"messier+double": { id: "comboMolecularEnsemble", label: "분자 앙상블 모드" },
+				"noHold+gravity+volatile": { id: "comboCriticalDetonation", label: "임계 폭발 모드" },
+				"invisible+expert": { id: "comboElementX", label: "원소 X 모드" },
+				"allSpin+expert": { id: "comboPeriodicTable", label: "주기율표 모드" }
+			});
+
+			const PREFIXES = ["", "meth", "eth", "prop", "but", "pent", "hex", "hept", "oct", "non", "dec", "undec", "dodec", "tridec", "tetradec", "pentadec", "hexadec", "heptadec", "octadec", "nonadec", "eicos", "heneicos", "docos", "tricos", "tetracos", "pentacos", "hexacos", "heptacos", "octacos", "nonacos", "triacont", "hentriacont", "dotriacont", "tritriacont", "tetratriacont", "pentatriacont", "hexatriacont", "heptatriacont", "octatriacont", "nonatriacont", "tetracont", "hentetracont", "dotetracont", "tritetracont", "tetratetracont", "pentatetracont", "hexatetracont", "heptatetracont", "octatetracont", "nonatetracont", "pentacont", "henpentacont", "dopentacont", "tripentacont", "tetrapentacont", "pentapentacont", "hexapentacont", "heptapentacont", "octapentacont", "nonapentacont", "hexacont", "henhexacont", "dohexacont", "trihexacont", "tetrahexacont", "pentahexacont", "hexahexacont", "heptahexacont", "octahexacont", "nonahexacont", "heptacont", "henheptacont", "doheptacont", "triheptacont", "tetraheptacont", "pentaheptacont", "hexaheptacont", "heptaheptacont", "octaheptacont", "nonaheptacont", "octacont", "henoctacont", "dooctacont", "trioctacont", "tetraoctacont", "pentaoctacont", "hexaoctacont", "heptaoctacont", "octaoctacont", "nonaoctacont", "nonacont", "hennonacont", "dononacont", "trinonacont", "tetranonacont", "pentanonacont", "hexanonacont", "heptanonacont", "octanonacont", "nonanonacont", "hect"];
+			const SUBSCRIPT_DIGITS = { "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉" };
+			const FROM_SUBSCRIPT = { "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9" };
+			const FIRST_TEN_LEVEL_WAVES = Object.freeze([10, 20, 30, 30, 40, 40, 50, 50, 60, 60]);
+			const METERS_PER_WAVE = 5;
+			const BASE_ENEMY_SPEED = 36;
+			const SPAWN_DELAY = 2.5;
+			const LEVEL_SPEED_LINEAR = 0.10;
+			const LEVEL_SPEED_ACCELERATION = 0.006;
+			const VOLATILE_SLOW = 0.72;
+			const VOLATILE_FAST = 1.28;
+			const REVERSE_VOLATILE_STEP = 0.14;
+
+			let selectedNormalModes = new Set();
+			let selectedReverseMode = null;
+			let activeNormalModes = new Set();
+			let activeReverseMode = null;
+			let enemies = [];
+			let projectiles = [];
+			let waveStates = new Map();
+			let pendingWaveSpeedEffects = [];
+			let score = 0;
+			let lives = 3;
+			let waveIndex = 0;
+			let currentLevel = 1;
+			let waveInLevel = 0;
+			let nextWaveId = 1;
+			let levelSpeedMultiplier = 1;
+			let currentWaveSpeedEffect = 1;
+			let permanentSpeedMultiplier = 1;
+			let lastAllSpinRoute = null;
+			let lastFrame = 0;
+			let spawnTimer = 0;
+			let gameRunning = false;
+			let gameOver = false;
+			let levelUp = false;
+			let animationFrameId = 0;
+			let levelUpTimer = 0;
+			let toastTimer = 0;
+
+			function hasMode(mode) {
+				return activeReverseMode === mode || activeNormalModes.has(mode);
+			}
+
+			function isReverse(mode) {
+				return activeReverseMode === mode;
+			}
+
+			function wavesForLevel(level) {
+				if (level <= FIRST_TEN_LEVEL_WAVES.length) return FIRST_TEN_LEVEL_WAVES[level - 1];
+				return FIRST_TEN_LEVEL_WAVES[FIRST_TEN_LEVEL_WAVES.length - 1] + Math.ceil((level - 10) / 2) * 10;
+			}
+
+			function speedMultiplierForLevel(level) {
+				const completedLevels = level - 1;
+				return 1 + completedLevels * LEVEL_SPEED_LINEAR + completedLevels * completedLevels * LEVEL_SPEED_ACCELERATION;
+			}
+
+			function shuffled(values) {
+				const copy = values.slice();
+				for (let i = copy.length - 1; i > 0; i -= 1) {
+					const j = Math.floor(Math.random() * (i + 1));
+					const temp = copy[i];
+					copy[i] = copy[j];
+					copy[j] = temp;
+				}
+				return copy;
+			}
+
+			function combinationModeDefinition(modes) {
+				const key = MODE_KEYS.filter(function (mode) { return modes.has(mode); }).join("+");
+				return COMBINATION_MODES[key] || null;
+			}
+
+			function combinationModeName(modes) {
+				const definition = combinationModeDefinition(modes);
+				return definition ? definition.label : "";
+			}
+
+			function prefixFor(carbonCount) {
+				const safeCount = Math.max(1, Math.min(100, carbonCount));
+				return PREFIXES[safeCount];
+			}
+
+			function formulaFor(family, carbonCount) {
+				let hydrogenCount = carbonCount * 2 + 2;
+				if (family === "alkene") hydrogenCount = carbonCount * 2;
+				if (family === "alkyne") hydrogenCount = carbonCount * 2 - 2;
+				return (carbonCount === 1 ? "C" : "C" + carbonCount) + "H" + hydrogenCount;
+			}
+
+			function makeHydrocarbon(family, carbonCount) {
+				const minimum = family === "alkane" ? 1 : 2;
+				const count = Math.max(minimum, Math.min(100, carbonCount));
+				const suffix = family === "alkane" ? "ane" : family === "alkene" ? "ene" : "yne";
+				return {
+					family: family,
+					carbonCount: count,
+					baseName: prefixFor(count) + suffix,
+					formula: formulaFor(family, count)
+				};
+			}
+
+			function makeReverseMessier(carbonCount) {
+				const count = Math.max(1, Math.min(100, carbonCount));
+				const type = ["ether", "amine", "sulfide"][Math.floor(Math.random() * 3)];
+				const alkyl = prefixFor(count) + "yl";
+				let formula = "C" + (count * 2) + "H" + (count * 4 + 2);
+				if (type === "ether") formula += "O";
+				if (type === "amine") formula = "C" + (count * 2) + "H" + (count * 4 + 3) + "N";
+				if (type === "sulfide") formula += "S";
+				return {
+					family: type,
+					carbonCount: count * 2,
+					baseName: "di" + alkyl + type,
+					formula: formula
+				};
+			}
+
+			function formulaDisplay(formula) {
+				return formula.replace(/[0-9]/g, function (digit) { return SUBSCRIPT_DIGITS[digit]; });
+			}
+
+			function normalizeFormula(value) {
+				return value.trim().replace(/[₀-₉]/g, function (digit) { return FROM_SUBSCRIPT[digit]; }).replace(/\s+/g, "").toUpperCase();
+			}
+
+			function normalizeExactName(value) {
+				return value.trim().replace(/[\s-]+/g, "");
+			}
+
+			function alternatingCase(value) {
+				let letterIndex = 0;
+				return value.split("").map(function (character) {
+					if (!/[a-z]/i.test(character)) return character;
+					const transformed = letterIndex % 2 === 0 ? character.toUpperCase() : character.toLowerCase();
+					letterIndex += 1;
+					return transformed;
+				}).join("");
+			}
+
+			function casedName(baseName) {
+				if (isReverse("noHold")) return alternatingCase(baseName);
+				if (activeNormalModes.has("noHold")) return baseName.toUpperCase();
+				return baseName.toLowerCase();
+			}
+
+			function nameMatches(value, expected) {
+				return normalizeExactName(value) === normalizeExactName(expected);
+			}
+
+			function updateSelectionUI() {
+				modeCards.forEach(function (card) {
+					const mode = card.dataset.mode;
+					const normal = selectedNormalModes.has(mode);
+					const reverse = selectedReverseMode === mode;
+					const description = Array.from(card.querySelectorAll(".modeName, .effect")).map(function (part) {
+						return part.textContent.trim();
+					}).join(". ");
+					card.disabled = false;
+					card.classList.toggle("selected", normal || reverse);
+					card.classList.toggle("reverse", reverse);
+					card.setAttribute("aria-pressed", reverse ? "mixed" : String(normal));
+					card.title = "일반과 강화 모드 사용 가능";
+					card.setAttribute("aria-label", description + ". 상태: " + (reverse ? "강화 모드 적용됨" : normal ? "일반 적용됨" : "적용 안 됨"));
+					card.querySelector(".stateBadge").textContent = reverse ? "강화" : "일반";
+				});
+				reverseShortcuts.forEach(function (button) {
+					button.disabled = false;
+					button.title = "강화 모드 선택";
+					button.setAttribute("aria-pressed", String(selectedReverseMode === button.dataset.reverseMode));
+				});
+
+				if (selectedReverseMode) {
+					selectionSummaryEl.textContent = "강화 모드: " + MODE_META[selectedReverseMode].label + " · 다른 모드와 중첩되지 않습니다";
+				} else if (selectedNormalModes.size) {
+					const combinationName = combinationModeName(selectedNormalModes);
+					const firstWaveNote = selectedNormalModes.has("messier") && selectedNormalModes.has("double") ? " · 첫 웨이브는 메테인 1개" : "";
+					selectionSummaryEl.textContent = "적용 중: " + (combinationName || Array.from(selectedNormalModes).map(function (mode) { return MODE_META[mode].label; }).join(" · ")) + firstWaveNote;
+				} else {
+					selectionSummaryEl.textContent = "적용 중: 기본 규칙";
+				}
+			}
+
+			function toggleNormalMode(mode) {
+				selectedReverseMode = null;
+				if (selectedNormalModes.has(mode)) selectedNormalModes.delete(mode);
+				else selectedNormalModes.add(mode);
+				updateSelectionUI();
+			}
+
+			function selectReverseMode(mode) {
+				const turningOff = selectedReverseMode === mode;
+				selectedNormalModes.clear();
+				selectedReverseMode = turningOff ? null : mode;
+				updateSelectionUI();
+				if (navigator.vibrate) navigator.vibrate(35);
+			}
+
+			reverseShortcuts.forEach(function (button) {
+				button.addEventListener("click", function () { selectReverseMode(button.dataset.reverseMode); });
+			});
+
+			modeCards.forEach(function (card) {
+				let pressTimer = 0;
+				let longPressTriggered = false;
+				let startX = 0;
+				let startY = 0;
+
+				function cancelPress() {
+					window.clearTimeout(pressTimer);
+					pressTimer = 0;
+					card.classList.remove("pressing");
+				}
+
+				card.addEventListener("pointerdown", function (event) {
+					if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+					longPressTriggered = false;
+					startX = event.clientX;
+					startY = event.clientY;
+					card.classList.add("pressing");
+					pressTimer = window.setTimeout(function () {
+						longPressTriggered = true;
+						card.classList.remove("pressing");
+						selectReverseMode(card.dataset.mode);
+					}, 620);
+				});
+
+				card.addEventListener("pointermove", function (event) {
+					if (Math.hypot(event.clientX - startX, event.clientY - startY) > 12) cancelPress();
+				});
+				card.addEventListener("pointerup", cancelPress);
+				card.addEventListener("pointercancel", cancelPress);
+				card.addEventListener("pointerleave", function (event) { if (event.pointerType === "mouse") cancelPress(); });
+				card.addEventListener("contextmenu", function (event) { event.preventDefault(); });
+				card.addEventListener("dragstart", function (event) { event.preventDefault(); });
+				card.addEventListener("click", function (event) {
+					if (longPressTriggered) {
+						longPressTriggered = false;
+						event.preventDefault();
+						return;
+					}
+					if (event.shiftKey) selectReverseMode(card.dataset.mode);
+					else toggleNormalMode(card.dataset.mode);
+				});
+				card.addEventListener("keydown", function (event) {
+					if (!event.repeat && event.shiftKey && (event.key === "Enter" || event.key === " ")) {
+						event.preventDefault();
+						selectReverseMode(card.dataset.mode);
+					}
+				});
+			});
+
+			function updateRunUI() {
+				scoreEl.textContent = score;
+				heightEl.textContent = score * METERS_PER_WAVE + "점";
+				lifeCountEl.textContent = lives;
+				waveEl.textContent = waveInLevel + "/" + wavesForLevel(currentLevel);
+				const volatileMultiplier = permanentSpeedMultiplier * currentWaveSpeedEffect;
+				const combinedMultiplier = levelSpeedMultiplier * volatileMultiplier;
+				levelEl.textContent = currentLevel;
+				speedStatusEl.textContent = "속도 ×" + combinedMultiplier.toFixed(2);
+				speedStatusEl.title = "레벨 ×" + levelSpeedMultiplier.toFixed(2) + " · 노벨 모드 ×" + volatileMultiplier.toFixed(2);
+			}
+
+			function updateActiveModesUI() {
+				activeModesEl.replaceChildren();
+				if (activeReverseMode) {
+					const chip = document.createElement("span");
+					chip.className = "modeChip reverse";
+					chip.textContent = "강화 · " + MODE_META[activeReverseMode].label;
+					activeModesEl.append(chip);
+				} else if (activeNormalModes.size) {
+					const combinationName = combinationModeName(activeNormalModes);
+					if (combinationName) {
+						const chip = document.createElement("span");
+						chip.className = "modeChip";
+						chip.textContent = combinationName;
+						activeModesEl.append(chip);
+					} else {
+						activeNormalModes.forEach(function (mode) {
+							const chip = document.createElement("span");
+							chip.className = "modeChip";
+							chip.textContent = MODE_META[mode].label;
+							activeModesEl.append(chip);
+						});
+					}
+				} else {
+					const chip = document.createElement("span");
+					chip.className = "modeChip";
+					chip.textContent = "기본 규칙";
+					activeModesEl.append(chip);
+				}
+
+				if (isReverse("expert")) hintEl.textContent = "분자식을 보고 알케인 이름을 입력한 뒤 Enter 또는 Space";
+				else if (hasMode("allSpin")) hintEl.textContent = "이름 또는 분자식을 입력하고 Enter/Space · 같은 표기 연속 사용 주의";
+				else hintEl.textContent = "화합물 이름을 입력하고 Enter 또는 Space";
+				if (hasMode("noHold")) hintEl.textContent += " · Caps Lock 무시, Shift로 대문자 입력";
+			}
+
+			function announce(message) {
+				window.clearTimeout(toastTimer);
+				toastEl.textContent = message;
+				toastEl.classList.add("show");
+				toastTimer = window.setTimeout(function () { toastEl.classList.remove("show"); }, 1900);
+			}
+
+			function setResult(title, subtitle) {
+				resultEl.replaceChildren();
+				const wrapper = document.createElement("div");
+				wrapper.textContent = title;
+				if (subtitle) {
+					const small = document.createElement("small");
+					small.textContent = subtitle;
+					wrapper.append(small);
+				}
+				resultEl.append(wrapper);
+				resultEl.classList.add("show");
+			}
+
+			function clearResult() {
+				resultEl.classList.remove("show");
+				resultEl.replaceChildren();
+			}
+
+			function clearActors() {
+				enemies.forEach(function (enemy) { enemy.el.remove(); });
+				projectiles.forEach(function (projectile) { projectile.el.remove(); });
+				enemies = [];
+				projectiles = [];
+				waveStates.clear();
+			}
+
+			function resetRunState() {
+				window.cancelAnimationFrame(animationFrameId);
+				window.clearTimeout(levelUpTimer);
+				window.clearTimeout(toastTimer);
+				clearActors();
+				score = 0;
+				lives = 3;
+				waveIndex = 0;
+				currentLevel = 1;
+				waveInLevel = 0;
+				nextWaveId = 1;
+				levelSpeedMultiplier = 1;
+				currentWaveSpeedEffect = 1;
+				permanentSpeedMultiplier = 1;
+				lastAllSpinRoute = null;
+				lastFrame = 0;
+				spawnTimer = 0;
+				gameOver = false;
+				levelUp = false;
+				pendingWaveSpeedEffects = [];
+				input.value = "";
+				input.placeholder = "";
+				clearResult();
+				toastEl.classList.remove("show");
+				updateRunUI();
+			}
+
+			function startGame() {
+				activeNormalModes = new Set(selectedNormalModes);
+				activeReverseMode = selectedReverseMode;
+				resetRunState();
+				gameRunning = true;
+				modeSelectEl.hidden = true;
+				game.classList.remove("selection-open");
+				backButton.style.display = "block";
+				input.disabled = false;
+				game.classList.toggle("gravity-normal", activeNormalModes.has("gravity"));
+				game.classList.toggle("gravity-reverse", isReverse("gravity"));
+				game.classList.toggle("volatile-active", hasMode("volatile"));
+				updateActiveModesUI();
+				spawnWave();
+				input.focus({ preventScroll: true });
+				animationFrameId = window.requestAnimationFrame(loop);
+			}
+
+			function returnToSelection() {
+				gameRunning = false;
+				resetRunState();
+				activeNormalModes.clear();
+				activeReverseMode = null;
+				game.classList.remove("gravity-normal", "gravity-reverse", "volatile-active");
+				backButton.style.display = "none";
+				input.disabled = true;
+				modeSelectEl.hidden = false;
+				game.classList.add("selection-open");
+				updateSelectionUI();
+			}
+
+			function baseCarbonForWave() {
+				if (hasMode("expert")) return Math.min(100, waveIndex + 1);
+				return Math.min(100, waveInLevel + 1);
+			}
+
+			function compoundsForWave() {
+				const baseCarbon = baseCarbonForWave();
+				if (isReverse("messier")) return [makeReverseMessier(waveInLevel + 1)];
+				if (isReverse("double")) {
+					return [makeHydrocarbon("alkane", baseCarbon), makeHydrocarbon("alkene", baseCarbon + 1), makeHydrocarbon("alkyne", baseCarbon + 1)];
+				}
+
+				const messier = activeNormalModes.has("messier");
+				const doubleMode = activeNormalModes.has("double");
+				if (messier && waveInLevel === 0) return [makeHydrocarbon("alkane", 1)];
+
+				if (messier && doubleMode) {
+					const family = ["alkane", "alkene", "alkyne"][Math.floor(Math.random() * 3)];
+					return [makeHydrocarbon(family, baseCarbon), makeHydrocarbon(family, baseCarbon + 1)];
+				}
+				if (doubleMode) return [makeHydrocarbon("alkane", baseCarbon), makeHydrocarbon("alkene", baseCarbon + 1)];
+				if (messier) {
+					const family = ["alkane", "alkene", "alkyne"][Math.floor(Math.random() * 3)];
+					return [makeHydrocarbon(family, baseCarbon)];
+				}
+				return [makeHydrocarbon("alkane", baseCarbon)];
+			}
+
+			function lanePositions(count) {
+				const top = 122;
+				const bottom = Math.max(top + 80, game.clientHeight - 155);
+				const lanes = [];
+				for (let i = 0; i < 5; i += 1) lanes.push(top + (bottom - top) * i / 4);
+				return shuffled(lanes).slice(0, count);
+			}
+
+			function enemyDisplayText(enemy) {
+				if (enemy.isWound) return enemy.requiredRoute === "formula" ? enemy.expectedName : formulaDisplay(enemy.compound.formula);
+				if (isReverse("expert")) return formulaDisplay(enemy.compound.formula);
+				return enemy.expectedName;
+			}
+
+			function createEnemy(compound, options) {
+				const el = document.createElement("div");
+				el.className = "enemy";
+				const word = document.createElement("span");
+				word.className = "word";
+				el.append(word);
+				if (options.isWound) {
+					el.classList.add("wound");
+					const tag = document.createElement("span");
+					tag.className = "woundTag";
+					tag.textContent = "WOUND · " + (options.requiredRoute === "formula" ? "분자식 입력" : "이름 입력");
+					el.append(tag);
+				}
+				game.append(el);
+
+				const enemy = {
+					el: el,
+					wordEl: word,
+					x: options.x,
+					y: options.y,
+					compound: compound,
+					expectedName: casedName(compound.baseName),
+					baseSpeed: options.baseSpeed,
+					waveId: options.waveId || null,
+					isWound: Boolean(options.isWound),
+					requiredRoute: options.requiredRoute || null,
+					targeted: false,
+					revealed: !hasMode("invisible")
+				};
+				enemy.wordEl.textContent = enemyDisplayText(enemy);
+				enemy.el.style.left = enemy.x + "px";
+				enemy.el.style.top = enemy.y + "px";
+				if (hasMode("invisible")) enemy.el.classList.add("hidden-word");
+				enemies.push(enemy);
+				return enemy;
+			}
+
+			function spawnWave() {
+				if (!gameRunning || gameOver || waveInLevel >= wavesForLevel(currentLevel)) return;
+				levelSpeedMultiplier = speedMultiplierForLevel(currentLevel);
+				const compounds = compoundsForWave();
+				const waveId = nextWaveId;
+				nextWaveId += 1;
+				const speedEffect = pendingWaveSpeedEffects.length ? pendingWaveSpeedEffects.shift() : 1;
+				currentWaveSpeedEffect = speedEffect;
+				const positions = lanePositions(compounds.length);
+				waveStates.set(waveId, {
+					remaining: compounds.length,
+					thresholdFailed: false,
+					speedEffectApplied: false
+				});
+
+				compounds.forEach(function (compound, index) {
+					createEnemy(compound, {
+						x: game.clientWidth + 24 + index * 22,
+						y: positions[index],
+						baseSpeed: BASE_ENEMY_SPEED * levelSpeedMultiplier * speedEffect,
+						waveId: waveId
+					});
+				});
+
+				waveIndex += 1;
+				waveInLevel += 1;
+				spawnTimer = 0;
+				updateRunUI();
+				if (speedEffect === VOLATILE_SLOW) announce("감속 웨이브 · 최종 속도 ×" + (levelSpeedMultiplier * permanentSpeedMultiplier * speedEffect).toFixed(2));
+				if (speedEffect === VOLATILE_FAST) announce("가속 웨이브 · 최종 속도 ×" + (levelSpeedMultiplier * permanentSpeedMultiplier * speedEffect).toFixed(2));
+			}
+
+			function queueNormalVolatileEffect(multiplier, message) {
+				pendingWaveSpeedEffects.push(multiplier);
+				announce(message);
+			}
+
+			function failVolatileWave(state) {
+				if (!hasMode("volatile") || state.speedEffectApplied) return;
+				state.thresholdFailed = true;
+				state.speedEffectApplied = true;
+				if (isReverse("volatile")) {
+					permanentSpeedMultiplier += REVERSE_VOLATILE_STEP;
+					updateRunUI();
+					announce("불안정 누적 · 최종 속도 ×" + (levelSpeedMultiplier * permanentSpeedMultiplier).toFixed(2));
+				} else {
+					queueNormalVolatileEffect(VOLATILE_FAST, "2/3선 실패 · 다음 웨이브 가속");
+				}
+			}
+
+			function finishWaveMember(enemy, killed) {
+				if (!enemy.waveId || !waveStates.has(enemy.waveId)) return;
+				const state = waveStates.get(enemy.waveId);
+				if (!killed) failVolatileWave(state);
+				state.remaining -= 1;
+				if (state.remaining > 0) return;
+				if (hasMode("volatile") && !state.thresholdFailed && !state.speedEffectApplied) {
+					state.speedEffectApplied = true;
+					if (!isReverse("volatile")) queueNormalVolatileEffect(VOLATILE_SLOW, "완벽한 처리 · 다음 웨이브 감속");
+				}
+				waveStates.delete(enemy.waveId);
+				score += 1;
+				updateRunUI();
+			}
+
+			function spawnWounds(sourceEnemy, amount, requiredRoute) {
+				const positions = lanePositions(amount);
+				for (let i = 0; i < amount; i += 1) {
+					createEnemy(sourceEnemy.compound, {
+						x: game.clientWidth + 28 + i * 46,
+						y: positions[i],
+						baseSpeed: Math.max(58, BASE_ENEMY_SPEED * levelSpeedMultiplier * 1.7),
+						isWound: true,
+						requiredRoute: requiredRoute
+					});
+				}
+			}
+
+			function handleAllSpinRoute(enemy, route) {
+				if (!hasMode("allSpin")) return;
+				if (enemy.isWound) {
+					lastAllSpinRoute = route;
+					return;
+				}
+				const repeated = lastAllSpinRoute === route;
+				lastAllSpinRoute = route;
+				if (!repeated) return;
+				const opposite = route === "name" ? "formula" : "name";
+				if (isReverse("allSpin")) {
+					if (enemies.some(function (candidate) { return candidate.isWound; })) loseLife("Wound가 남아 있는데 표기를 반복했습니다");
+					if (!gameOver) spawnWounds(enemy, 2, opposite);
+					announce("표기 반복 · Wound 2개");
+				} else {
+					spawnWounds(enemy, 1, opposite);
+					announce("표기 반복 · Wound 발생");
+				}
+			}
+
+			function matchEnemy(enemy, value) {
+				const nameMatch = nameMatches(value, enemy.expectedName);
+				const formulaMatch = normalizeFormula(value) === normalizeFormula(enemy.compound.formula);
+				if (enemy.isWound) {
+					if (enemy.requiredRoute === "name" && nameMatch) return "name";
+					if (enemy.requiredRoute === "formula" && formulaMatch) return "formula";
+					return null;
+				}
+				if (isReverse("expert")) return nameMatch ? "name" : null;
+				if (hasMode("allSpin")) {
+					if (nameMatch) return "name";
+					if (formulaMatch) return "formula";
+					return null;
+				}
+				return nameMatch ? "name" : null;
+			}
+
+			function throwBall(enemy) {
+				const ball = document.createElement("div");
+				ball.className = "projectile";
+				game.append(ball);
+				projectiles.push({ el: ball, x: 68, y: game.clientHeight * .53, target: enemy });
+			}
+
+			function attack() {
+				if (!gameRunning || gameOver || levelUp) return false;
+				const value = input.value.trim();
+				if (!value) return false;
+				const matches = enemies.filter(function (enemy) { return !enemy.targeted; }).map(function (enemy) {
+					return { enemy: enemy, route: matchEnemy(enemy, value) };
+				}).filter(function (match) { return Boolean(match.route); }).sort(function (a, b) { return a.enemy.x - b.enemy.x; });
+				if (!matches.length) {
+					input.select();
+					return false;
+				}
+				const match = matches[0];
+				match.enemy.targeted = true;
+				handleAllSpinRoute(match.enemy, match.route);
+				if (!gameOver) throwBall(match.enemy);
+				input.value = "";
+				return true;
+			}
+
+			function neutralizeCapsLock(event) {
+				if (event.key === "CapsLock") {
+					event.preventDefault();
+					announce("Caps Lock은 게임 입력에 적용되지 않습니다");
+					return true;
+				}
+				if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1 || !/[a-z]/i.test(event.key)) return false;
+				if (!event.getModifierState || !event.getModifierState("CapsLock")) return false;
+				const letter = event.key.toLowerCase();
+				const replacement = event.shiftKey ? letter.toUpperCase() : letter;
+				const start = input.selectionStart === null ? input.value.length : input.selectionStart;
+				const end = input.selectionEnd === null ? input.value.length : input.selectionEnd;
+				input.setRangeText(replacement, start, end, "end");
+				input.dispatchEvent(new Event("input", { bubbles: true }));
+				event.preventDefault();
+				return true;
+			}
+
+			input.addEventListener("keydown", function (event) {
+				if (neutralizeCapsLock(event)) return;
+				if (event.key === "Enter" || event.code === "Space") {
+					event.preventDefault();
+					attack();
+				}
+			});
+
+			function removeEnemy(enemy, killed) {
+				const index = enemies.indexOf(enemy);
+				if (index !== -1) enemies.splice(index, 1);
+				enemy.el.remove();
+				finishWaveMember(enemy, killed);
+			}
+
+			function loseLife(reason) {
+				if (gameOver) return;
+				lives -= 1;
+				lifeCountEl.textContent = lives;
+				if (reason) announce(reason);
+				if (lives > 0) return;
+				gameOver = true;
+				input.disabled = true;
+				input.placeholder = "게임 오버";
+				clearActors();
+				setResult("게임 오버", score * METERS_PER_WAVE + "점 · " + score + "웨이브");
+			}
+
+			function startLevelUp() {
+				levelUp = true;
+				input.disabled = true;
+				const completedLevel = currentLevel;
+				currentLevel += 1;
+				waveInLevel = 0;
+				levelSpeedMultiplier = speedMultiplierForLevel(currentLevel);
+				currentWaveSpeedEffect = 1;
+				lives += 1;
+				updateRunUI();
+				setResult(completedLevel + "레벨 통과", currentLevel + "레벨 · 목숨 1개 추가 · 기본 속도 ×" + levelSpeedMultiplier.toFixed(2));
+				levelUpTimer = window.setTimeout(function () {
+					levelUp = false;
+					clearResult();
+					input.disabled = false;
+					input.focus({ preventScroll: true });
+					spawnTimer = SPAWN_DELAY;
+					lastFrame = 0;
+					animationFrameId = window.requestAnimationFrame(loop);
+				}, 1800);
+			}
+
+			function updateEnemyVisibility(enemy) {
+				if (!hasMode("invisible") || enemy.revealed) return;
+				if (!isReverse("invisible") && enemy.x <= game.clientWidth * .5) {
+					enemy.revealed = true;
+					enemy.el.classList.remove("hidden-word");
+				}
+			}
+
+			function updateVolatileThreshold(enemy) {
+				if (!hasMode("volatile") || enemy.isWound || !enemy.waveId || !waveStates.has(enemy.waveId)) return;
+				const state = waveStates.get(enemy.waveId);
+				if (!state.thresholdFailed && enemy.x <= game.clientWidth * (2 / 3)) failVolatileWave(state);
+			}
+
+			function updateEnemies(dt) {
+				for (let i = enemies.length - 1; i >= 0; i -= 1) {
+					const enemy = enemies[i];
+					enemy.x -= enemy.baseSpeed * permanentSpeedMultiplier * dt;
+					enemy.el.style.left = enemy.x + "px";
+					updateEnemyVisibility(enemy);
+					updateVolatileThreshold(enemy);
+					if (enemy.x <= 66) {
+						removeEnemy(enemy, false);
+						loseLife(enemy.isWound ? "Wound가 도달했습니다" : "적이 도달했습니다");
+						if (gameOver) return;
+					}
+				}
+			}
+
+			function updateProjectiles(dt) {
+				for (let i = projectiles.length - 1; i >= 0; i -= 1) {
+					const projectile = projectiles[i];
+					const target = projectile.target;
+					if (!target.el.isConnected) {
+						projectile.el.remove();
+						projectiles.splice(i, 1);
+						continue;
+					}
+					const dx = target.x + 67 - projectile.x;
+					const dy = target.y + 37 - projectile.y;
+					const distance = Math.hypot(dx, dy);
+					if (distance < 20) {
+						removeEnemy(target, true);
+						projectile.el.remove();
+						projectiles.splice(i, 1);
+						continue;
+					}
+					const step = Math.min(distance, 900 * dt);
+					projectile.x += dx / distance * step;
+					projectile.y += dy / distance * step;
+					projectile.el.style.left = projectile.x + "px";
+					projectile.el.style.top = projectile.y + "px";
+				}
+			}
+
+			function loop(time) {
+				if (!gameRunning || gameOver || levelUp) return;
+				const dt = lastFrame ? Math.min((time - lastFrame) / 1000, .05) : 0;
+				lastFrame = time;
+				spawnTimer += dt;
+				updateEnemies(dt);
+				if (gameOver) return;
+				updateProjectiles(dt);
+
+				const boundaryWaiting = waveInLevel >= wavesForLevel(currentLevel);
+				if (boundaryWaiting && enemies.length === 0 && projectiles.length === 0) {
+					startLevelUp();
+					return;
+				}
+
+				if (!boundaryWaiting && spawnTimer >= SPAWN_DELAY) spawnWave();
+				animationFrameId = window.requestAnimationFrame(loop);
+			}
+
+			startButton.addEventListener("click", startGame);
+			backButton.addEventListener("click", returnToSelection);
+			document.addEventListener("keydown", function (event) {
+				if (event.key === "Escape" && gameRunning) returnToSelection();
+			});
+			updateSelectionUI();
+			updateRunUI();
+		}());
+	</script>
+</body>
+</html>
+
